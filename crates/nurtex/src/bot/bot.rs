@@ -20,7 +20,7 @@ use crate::storage::Storage;
 use crate::swarm::Speedometer;
 use crate::world::Entity;
 
-/// Структура Minecraft бота
+/// Структура Minecraft бота.
 ///
 /// ## Примеры
 /// ```rust, ignore
@@ -126,13 +126,23 @@ impl Bot {
 
         let packet_result = {
           match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
-            Ok(r) => if let Some(g) = r.as_ref() { g.read_packet().await } else { None },
+            Ok(r) => {
+              if let Some(g) = r.as_ref() {
+                g.read_packet().await
+              } else {
+                None
+              }
+            }
             _ => None,
           }
         };
 
         match packet_result {
-          Some(packet) => if reader_tx.send(packet).is_err() { break },
+          Some(packet) => {
+            if reader_tx.send(packet).is_err() {
+              break;
+            }
+          }
           None => tokio::time::sleep(Duration::from_millis(50)).await,
         }
       }
@@ -264,7 +274,7 @@ impl Bot {
   pub fn get_writer(&self) -> PacketWriter {
     Arc::clone(&self.writer_tx)
   }
-  
+
   /// Метод получения хэндла
   pub fn get_handle(&self) -> &Option<JoinHandle<core::result::Result<(), std::io::Error>>> {
     &self.handle

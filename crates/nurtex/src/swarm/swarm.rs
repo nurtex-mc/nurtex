@@ -43,8 +43,7 @@ use crate::swarm::{JoinDelay, TargetServer};
 ///
 ///   // Отправляем от каждого бота сообщение в чат
 ///   swarm.for_each_parallel(async |bot| {
-///     // Игнорируем возможные ошибки
-///     let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
+///     bot.chat_message(format!("Привет, я {}!", bot.username())).await
 ///   });
 ///
 ///   // Ждём немного
@@ -149,31 +148,27 @@ impl Swarm {
   }
 
   /// Последовательный for-each
-  pub async fn for_each_consistent<F, Fut>(&self, f: F)
+  pub async fn for_each_consistent<F, Fut>(&self, f: F) -> std::io::Result<()>
   where
     F: Fn(Arc<Bot>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = ()> + Send + 'static,
+    Fut: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
-    for i in &self.bots {
-      let bot = Arc::clone(i);
-      f(bot).await;
+    for bot in &self.bots {
+      f(Arc::clone(bot)).await?;
     }
+
+    Ok(())
   }
 
   /// Параллельный for-each
   pub fn for_each_parallel<F, Fut>(&self, f: F)
   where
     F: Fn(Arc<Bot>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = ()> + Send + 'static,
+    Fut: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
-    let f = Arc::new(f);
-
-    for i in &self.bots {
-      let f_clone = Arc::clone(&f);
-      let bot = Arc::clone(i);
-
-      tokio::spawn(f_clone(bot));
-    }
+    self.bots.iter().for_each(|bot| {
+      tokio::spawn(f(Arc::clone(&bot)));
+    });
   }
 
   /// Метод добавления бота в рой
@@ -401,6 +396,8 @@ mod tests {
       let rotation = bot.get_rotation().await;
 
       println!("[{}] Позиция: {:?}, Ротация: {:?}", bot.username(), position, rotation);
+
+      Ok(())
     });
 
     tokio::time::sleep(Duration::from_secs(8)).await;

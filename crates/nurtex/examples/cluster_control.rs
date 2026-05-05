@@ -29,8 +29,8 @@ async fn main() -> std::io::Result<()> {
 
   // Проходимся параллельно по всем ботам из всех роев
   cluster.for_each_bots_parallel(async |bot| {
-    // Отправляем сообщение в чат и игнорируем возможные ошибки
-    let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
+    // Отправляем сообщение в чат
+    bot.chat_message(format!("Привет, я {}!", bot.username())).await
   });
 
   // Вновь ждём немножко

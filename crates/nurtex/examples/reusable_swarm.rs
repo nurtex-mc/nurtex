@@ -23,8 +23,8 @@ async fn main() -> std::io::Result<()> {
 
     // Параллельно проходимся по всем ботам из роя
     swarm.for_each_parallel(async |bot| {
-      // Отправляем сообщение в чат и игнорируем возможные ошибки
-      let _ = bot.chat_message("Привет, мир!").await;
+      // Отправляем сообщение в чат
+      bot.chat_message("Привет, мир!").await
     });
 
     // Ждём немножко

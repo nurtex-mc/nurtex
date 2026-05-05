@@ -48,8 +48,8 @@ use crate::{Bot, JoinDelay, Swarm, bot::handlers::Handlers};
 ///
 ///   // Проходимся параллельно по всем ботам из всех роев
 ///   cluster.for_each_bots_parallel(async |bot| {
-///     // Отправляем сообщение в чат и игнорируем возможные ошибки
-///     let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
+///     // Отправляем сообщение в чат
+///     bot.chat_message(format!("Привет, я {}!", bot.username())).await
 ///   });
 ///
 ///   // Ожидаем заврещения всех хэндлов
@@ -172,61 +172,57 @@ impl Cluster {
   }
 
   /// Последовательный `for-each` по всем роям
-  pub async fn for_each_consistent<F, O>(&self, f: F)
+  pub async fn for_each_consistent<F, O>(&self, f: F) -> std::io::Result<()>
   where
     F: Fn(Arc<Swarm>) -> O + Send + Sync + 'static,
-    O: std::future::Future<Output = ()> + Send + 'static,
+    O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
     for swarm in &self.swarms {
-      f(Arc::clone(swarm)).await;
+      f(Arc::clone(swarm)).await?;
     }
+
+    Ok(())
   }
 
   /// Параллельный `for-each` по всем роям
   pub fn for_each_parallel<F, O>(&self, f: F)
   where
     F: Fn(Arc<Swarm>) -> O + Send + Sync + 'static,
-    O: std::future::Future<Output = ()> + Send + 'static,
+    O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
-    let f = Arc::new(f);
-
-    for swarm in &self.swarms {
-      let f_clone = Arc::clone(&f);
-      let swarm_clone = Arc::clone(swarm);
-
-      tokio::spawn(f_clone(swarm_clone));
-    }
+    self.swarms.iter().for_each(|swarm| {
+      tokio::spawn(f(Arc::clone(&swarm)));
+    });
   }
 
   /// Последовательный `for-each` по всем ботам
-  pub async fn for_each_bots_consistent<F, O>(&self, f: F)
+  pub async fn for_each_bots_consistent<F, O>(&self, f: F) -> std::io::Result<()>
   where
     F: Fn(Arc<Bot>) -> O + Send + Sync + 'static,
-    O: std::future::Future<Output = ()> + Send + 'static,
+    O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
     let f = Arc::new(f);
 
     for swarm in &self.swarms {
       for bot in &swarm.bots {
-        f(Arc::clone(bot)).await;
+        f(Arc::clone(bot)).await?;
       }
     }
+
+    Ok(())
   }
 
   /// Параллельный `for-each` по всем ботам
   pub fn for_each_bots_parallel<F, O>(&self, f: F)
   where
     F: Fn(Arc<Bot>) -> O + Send + Sync + 'static,
-    O: std::future::Future<Output = ()> + Send + 'static,
+    O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
-    let f = Arc::new(f);
-
-    for swarm in &self.swarms {
-      for bot in &swarm.bots {
-        let bot_clone = Arc::clone(bot);
-        tokio::spawn(f(bot_clone));
-      }
-    }
+    self.swarms.iter().for_each(|swarm| {
+      swarm.bots.iter().for_each(|bot| {
+        tokio::spawn(f(Arc::clone(&bot)));
+      });
+    });
   }
 
   /// Метод ожидания завершения всех хэндлов
@@ -303,18 +299,16 @@ mod tests {
 
     tokio::time::sleep(Duration::from_secs(6)).await;
 
-    cluster.for_each_bots_parallel(async |bot| {
-      let _ = bot.chat_message("Параллельный for-each").await;
-    });
+    cluster.for_each_bots_parallel(async |bot| bot.chat_message("Параллельный for-each").await);
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     cluster
       .for_each_bots_consistent(async |bot| {
-        let _ = bot.chat_message("Последовательный for-each").await;
         tokio::time::sleep(Duration::from_millis(250)).await;
+        bot.chat_message("Последовательный for-each").await
       })
-      .await;
+      .await?;
 
     cluster.wait_finish().await
   }
