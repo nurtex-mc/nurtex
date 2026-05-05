@@ -18,7 +18,7 @@ use crate::protocol::types::{Rotation, Vector3};
 use crate::proxy::Proxy;
 use crate::storage::Storage;
 use crate::swarm::Speedometer;
-use crate::world::Entity;
+use crate::world::{Entity, EntityId};
 
 /// Структура Minecraft бота.
 ///
@@ -50,6 +50,7 @@ pub struct Bot {
   pub profile: Arc<RwLock<BotProfile>>,
   pub connection: Connection,
   handle: Option<JoinHandle<core::result::Result<(), std::io::Error>>>,
+  entity_id: Arc<EntityId>,
   username: String,
   protocol_version: i32,
   connection_timeout: u64,
@@ -94,6 +95,7 @@ impl Bot {
       protocol_version: 774,
       connection_timeout: 14000,
       proxy: Arc::new(proxy),
+      entity_id: Arc::new(EntityId::negative()),
       username: name,
       handle: None,
       reader_tx: Arc::new(reader_tx),
@@ -317,6 +319,7 @@ impl Bot {
     let connection = Arc::clone(&self.connection);
     let profile = Arc::clone(&self.profile);
     let components = Arc::clone(&self.components);
+    let entity_id = Arc::clone(&self.entity_id);
     let speedometer = self.speedometer.clone();
     let plugins = Arc::clone(&self.plugins);
     let proxy = Arc::clone(&self.proxy);
@@ -341,6 +344,7 @@ impl Bot {
           &connection,
           &profile,
           &components,
+          &entity_id,
           &speedometer,
           &plugins,
           &reader_tx,
@@ -469,6 +473,11 @@ impl Bot {
       }
       Err(_) => None,
     }
+  }
+
+  /// Метод получения ID сущности бота
+  pub async fn get_entity_id(&self) -> i32 {
+    self.entity_id.get()
   }
 
   /// Метод получения позиции бота

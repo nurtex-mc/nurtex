@@ -22,13 +22,14 @@ use crate::protocol::types::{ClientCommand, ClientIntention, ResourcePackState, 
 use crate::proxy::Proxy;
 use crate::storage::Storage;
 use crate::swarm::Speedometer;
-use crate::world::Entity;
+use crate::world::{Entity, EntityId};
 
 /// Функция спавна процесса подключения
 pub async fn spawn_connection(
   connection: &Arc<RwLock<Option<NurtexConnection>>>,
   profile: &Arc<RwLock<BotProfile>>,
   components: &Arc<RwLock<BotComponents>>,
+  entity_id: &Arc<EntityId>,
   speedometer: &Option<Arc<Speedometer>>,
   plugins: &Plugins,
   reader_tx: &PacketReader,
@@ -121,10 +122,7 @@ pub async fn spawn_connection(
         if let Some(handler) = &handlers.on_login_handler {
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(async move {
-            let _ = handler_clone(username_clone).await;
-          });
+          tokio::spawn(handler_clone(username_clone));
         }
 
         profile.write().await.uuid = p.uuid;
@@ -279,10 +277,7 @@ pub async fn spawn_connection(
 
     match packet {
       ClientsidePlayPacket::Login(p) => {
-        capture_components(&components, async |comp| {
-          comp.entity_id = p.entity_id;
-        })
-        .await;
+        entity_id.set(p.entity_id);
 
         if plugins.auto_respawn.enabled && p.enable_respawn_screen {
           tokio::time::sleep(Duration::from_millis(plugins.auto_respawn.respawn_delay)).await;
@@ -354,12 +349,18 @@ pub async fn spawn_connection(
           .await;
       }
       ClientsidePlayPacket::SetEntityVelocity(p) => {
-        storage
-          .capture_entity(&p.entity_id, async |entity| {
-            entity.position.with_velocity(p.velocity.to_vector3());
-            entity.velocity = Vector3::from_lp_vector3(p.velocity);
-          })
-          .await;
+        if entity_id.get() == p.entity_id {
+          capture_components(&components, async |comp| {
+            comp.velocity = p.velocity.to_vector3();
+          }).await;
+        } else {
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              entity.position.with_velocity(p.velocity.to_vector3());
+              entity.velocity = Vector3::from_lp_vector3(p.velocity);
+            })
+            .await;
+        }
       }
       ClientsidePlayPacket::KeepAlive(p) => {
         capture_connection(&connection, async |conn| {
