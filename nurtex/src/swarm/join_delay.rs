@@ -17,12 +17,30 @@ impl JoinDelay {
     Self(Box::new(move |_current, _total| delay))
   }
 
+  /// Метод создания прогрессивной задержки (увеличивается с каждым ботом до указанного предела)
+  pub fn progressive(delay: u64, max_delay: u64, multiplier: u64) -> Self {
+    Self(Box::new(move |current, _total| {
+      let result = delay * ((current + 1) * multiplier);
+
+      if result > max_delay { max_delay } else { result }
+    }))
+  }
+
   /// Метод создания линейной прогрессивной задержки (увеличивается с каждым ботом до указанного предела)
   pub fn progressive_linear(delay: u64, max_delay: u64) -> Self {
     Self(Box::new(move |current, _total| {
       let result = delay * (current + 1);
 
       if result > max_delay { max_delay } else { result }
+    }))
+  }
+
+  /// Метод создания регрессивной задержки (уменьшается с каждым ботом до указанного предела)
+  pub fn regressive(delay: u64, min_delay: u64, multiplier: u64) -> Self {
+    Self(Box::new(move |current, _total| {
+      let result = delay / ((current + 1) * multiplier);
+
+      if result < min_delay { min_delay } else { result }
     }))
   }
 
@@ -87,6 +105,40 @@ mod tests {
   async fn test_progressive_linear_delay() -> io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(10)
       .with_join_delay(JoinDelay::progressive_linear(500, 5000))
+      .bind("localhost", 25565);
+
+    for i in 0..10 {
+      swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
+    }
+
+    swarm.launch().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    swarm.shutdown().await?;
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_progressive_delay() -> io::Result<()> {
+    let mut swarm = Swarm::create_with_capacity(10)
+      .with_join_delay(JoinDelay::progressive(10, 3000, 5))
+      .bind("localhost", 25565);
+
+    for i in 0..10 {
+      swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
+    }
+
+    swarm.launch().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    swarm.shutdown().await?;
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_regressive_delay() -> io::Result<()> {
+    let mut swarm = Swarm::create_with_capacity(10)
+      .with_join_delay(JoinDelay::regressive(5000, 10, 5))
       .bind("localhost", 25565);
 
     for i in 0..10 {
