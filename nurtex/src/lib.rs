@@ -1,5 +1,6 @@
 pub mod bot;
 pub mod cluster;
+pub mod random;
 pub mod storage;
 pub mod swarm;
 pub mod world;

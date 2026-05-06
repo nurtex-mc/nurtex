@@ -1,12 +1,13 @@
-use std::io::{self};
 use std::sync::Arc;
 use std::time::Duration;
 
+use rand::Rng;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
 use crate::bot::handlers::Handlers;
+use crate::random::generate_username;
 use crate::storage::Storage;
 use crate::swarm::{JoinDelay, TargetServer};
 
@@ -86,6 +87,25 @@ impl Swarm {
       shared_storage: Arc::new(Storage::null()),
       shared_handlers: Arc::new(Handlers::new()),
     }
+  }
+
+  /// Метод создания нового роя со случайными ботами
+  pub fn create_random(bots_count: usize) -> Self {
+    let mut swarm = Self::create();
+
+    for _ in 0..bots_count {
+      let random_username = loop {
+        let username = generate_username(rand::thread_rng().gen_range(5..=14));
+
+        if swarm.username_is_unique(&username) {
+          break username;
+        }
+      };
+
+      swarm.add_bot(Bot::create(random_username));
+    }
+
+    swarm
   }
 
   /// Метод создания нового роя с указанием ёмкости
@@ -334,7 +354,7 @@ impl Swarm {
   /// Метод выключения и очистки роя.
   /// После использования этого метода список ботов и их хэндлов полностью очищается,
   /// запустить тот же рой будет невозможно без нового добавления ботов через метод `add_bot`
-  pub async fn shutdown(&mut self) -> io::Result<()> {
+  pub async fn shutdown(&mut self) -> std::io::Result<()> {
     self.abort_handles();
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -502,5 +522,14 @@ mod tests {
 
     swarm.launch().await;
     swarm.wait_handles().await
+  }
+
+  #[tokio::test]
+  async fn test_random() {
+    Swarm::create_random(10)
+      .with_join_delay(JoinDelay::fixed(50))
+      .bind("localhost", 25565)
+      .launch_and_wait()
+      .await
   }
 }

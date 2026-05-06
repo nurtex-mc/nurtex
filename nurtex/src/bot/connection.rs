@@ -352,7 +352,8 @@ pub async fn spawn_connection(
         if entity_id.get() == p.entity_id {
           capture_components(&components, async |comp| {
             comp.velocity = p.velocity.to_vector3();
-          }).await;
+          })
+          .await;
         } else {
           storage
             .capture_entity(&p.entity_id, async |entity| {

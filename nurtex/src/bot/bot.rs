@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use hashbrown::HashMap;
+use rand::Rng;
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -16,6 +17,7 @@ use crate::protocol::connection::{ClientsidePacket, NurtexConnection};
 use crate::protocol::packets::play::ServersidePlayPacket;
 use crate::protocol::types::{Rotation, Vector3};
 use crate::proxy::Proxy;
+use crate::random::generate_username;
 use crate::storage::Storage;
 use crate::swarm::Speedometer;
 use crate::world::{Entity, EntityId};
@@ -68,6 +70,11 @@ impl Bot {
   /// Метод создания нового бота
   pub fn create(username: impl Into<String>) -> Self {
     Self::create_with_options(username, 45, 45, None, None)
+  }
+
+  /// Метод создания нового бота с случайным юзернеймом
+  pub fn create_random() -> Self {
+    Self::create_with_options(generate_username(rand::thread_rng().gen_range(5..=14)), 45, 45, None, None)
   }
 
   /// Метод создания нового бота с прокси
