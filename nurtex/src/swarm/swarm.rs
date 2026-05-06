@@ -54,7 +54,7 @@ use crate::swarm::{JoinDelay, TargetServer};
 /// }
 /// ```
 ///
-/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/crates/nurtex/examples)
+/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
 pub struct Swarm {
   /// Список всех ботов
   pub bots: Vec<Arc<Bot>>,

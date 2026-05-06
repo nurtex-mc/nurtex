@@ -126,7 +126,7 @@ async fn main() -> std::io::Result<()> {
 
 ## Current examples
 
-All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
+All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex/examples)
 
 
 # Features

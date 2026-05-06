@@ -4,7 +4,6 @@ This is a library written in Rust that allows you to create Minecraft bots and m
 
 Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 
-
 # Features
 
 - **Speed:** All operations in this library work efficiently and are limited by timeouts.
@@ -15,16 +14,13 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 - **Proxy support:** Library supports connecting bots via SOCKS5 / SOCKS4 proxies.
 - **Asynchrony:** Library relies on an asynchronous environment.
 
-
 # Documentation
 
 [**Русская**](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
 
-
 # Examples
 
-All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
-
+All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex/examples)
 
 ## Create a bot
 
@@ -53,7 +49,6 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-
 ## Create a swarm
 
 In this example, you can see a simple implementation of a bot swarm.
@@ -80,7 +75,6 @@ async fn main() {
     .await
 }
 ```
-
 
 ## Create a cluster
 

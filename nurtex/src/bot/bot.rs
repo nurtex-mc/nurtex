@@ -45,7 +45,7 @@ use crate::world::{Entity, EntityId};
 /// }
 /// ```
 ///
-/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/crates/nurtex/examples)
+/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
 pub struct Bot {
   pub profile: Arc<RwLock<BotProfile>>,
   pub connection: Connection,

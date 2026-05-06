@@ -44,12 +44,12 @@ All crates focus on:
 
 # Crate map
 
-- [nurtex](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex): A crate for high-level work with the bot / swarm API.
-- [nurtex-codec](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-codec): A crate for serializing Minecraft types into Rust types.
-- [nurtex-derive](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-derive): A crate for convenient parsing of network packets.
-- [nurtex-encrypt](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-encrypt): A crate containing the Minecraft TCP-connection encryption.
-- [nurtex-protocol](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
-- [nurtex-proxy](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
+- [nurtex](https://github.com/NurtexMC/nurtex/tree/main/nurtex): A crate for high-level work with the bot / swarm API.
+- [nurtex-codec](https://github.com/NurtexMC/nurtex/tree/main/nurtex-codec): A crate for serializing Minecraft types into Rust types.
+- [nurtex-derive](https://github.com/NurtexMC/nurtex/tree/main/nurtex-derive): A crate for convenient parsing of network packets.
+- [nurtex-encrypt](https://github.com/NurtexMC/nurtex/tree/main/nurtex-encrypt): A crate containing the Minecraft TCP-connection encryption.
+- [nurtex-protocol](https://github.com/NurtexMC/nurtex/tree/main/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
+- [nurtex-proxy](https://github.com/NurtexMC/nurtex/tree/main/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
 
 # Documentation
 
@@ -66,7 +66,7 @@ All crates focus on:
 
 # Examples
 
-All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
+All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex/examples)
 
 ## Create a bot
 

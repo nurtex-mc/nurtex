@@ -2,14 +2,9 @@
 
 Library that allows a Minecraft client to communicate with a server.
 
-> [!IMPORTANT]
-> This library is in early development and may be very unstable, have limited built-in functionality, etc. We recommend reporting any bugs in the issues.
-
-
 # Examples
 
-Examples of use can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-protocol/examples)
-
+Examples of use can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex-protocol/examples)
 
 # Packet types
 
