@@ -140,12 +140,11 @@ impl ConnectionReader {
   /// Метод чтения пакета
   pub async fn read_packet(&mut self) -> Option<ClientsidePacket> {
     let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
+    let state = ConnectionState::from(self.state.load(Ordering::SeqCst));
     let mut decryptor_guard = self.decryptor.lock().await;
 
     let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-
     let mut cursor = Cursor::new(raw_packet.as_ref());
-    let state = ConnectionState::from(self.state.load(Ordering::SeqCst));
 
     match state {
       ConnectionState::Handshake => deserialize_packet::<ClientsideHandshakePacket>(&mut cursor).map(ClientsidePacket::Handshake),
@@ -154,46 +153,6 @@ impl ConnectionReader {
       ConnectionState::Configuration => deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor).map(ClientsidePacket::Configuration),
       ConnectionState::Play => deserialize_packet::<ClientsidePlayPacket>(&mut cursor).map(ClientsidePacket::Play),
     }
-  }
-
-  /// Вспомогательный метод чтения `status` пакета
-  pub async fn read_status_packet(&mut self) -> Option<ClientsideStatusPacket> {
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let mut decryptor_guard = self.decryptor.lock().await;
-
-    let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(raw_packet.as_ref());
-    deserialize_packet::<ClientsideStatusPacket>(&mut cursor)
-  }
-
-  /// Вспомогательный метод чтения `login` пакета
-  pub async fn read_login_packet(&mut self) -> Option<ClientsideLoginPacket> {
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let mut decryptor_guard = self.decryptor.lock().await;
-
-    let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(raw_packet.as_ref());
-    deserialize_packet::<ClientsideLoginPacket>(&mut cursor)
-  }
-
-  /// Вспомогательный метод чтения `configuration` пакета
-  pub async fn read_configuration_packet(&mut self) -> Option<ClientsideConfigurationPacket> {
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let mut decryptor_guard = self.decryptor.lock().await;
-
-    let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(raw_packet.as_ref());
-    deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor)
-  }
-
-  /// Вспомогательный метод чтения `play` пакета
-  pub async fn read_play_packet(&mut self) -> Option<ClientsidePlayPacket> {
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let mut decryptor_guard = self.decryptor.lock().await;
-
-    let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(raw_packet.as_ref());
-    deserialize_packet::<ClientsidePlayPacket>(&mut cursor)
   }
 }
 
@@ -214,32 +173,6 @@ impl ConnectionWriter {
 
     write_raw_packet(&serialized, &mut self.write_stream, compression_threshold, &mut *encryptor_guard).await
   }
-
-  /// Вспомогательный метод записи `handshake` пакета
-  pub async fn write_handshake_packet(&mut self, packet: ServersideHandshakePacket) -> std::io::Result<()> {
-    self.write_packet(ServersidePacket::Handshake(packet)).await
-  }
-
-  /// Вспомогательный метод записи `status` пакета
-  pub async fn write_status_packet(&mut self, packet: ServersideStatusPacket) -> std::io::Result<()> {
-    self.write_packet(ServersidePacket::Status(packet)).await
-  }
-
-  /// Вспомогательный метод записи `login` пакета
-  pub async fn write_login_packet(&mut self, packet: ServersideLoginPacket) -> std::io::Result<()> {
-    self.write_packet(ServersidePacket::Login(packet)).await
-  }
-
-  /// Вспомогательный метод записи `configuration` пакета
-  pub async fn write_configuration_packet(&mut self, packet: ServersideConfigurationPacket) -> std::io::Result<()> {
-    self.write_packet(ServersidePacket::Configuration(packet)).await
-  }
-
-  /// Вспомогательный метод записи `play` пакета
-  pub async fn write_play_packet(&mut self, packet: ServersidePlayPacket) -> std::io::Result<()> {
-    self.write_packet(ServersidePacket::Play(packet)).await
-  }
-
   /// Метод выключения потока записи
   pub async fn shutdown(&mut self) -> std::io::Result<()> {
     self.write_stream.shutdown().await
@@ -337,25 +270,45 @@ impl NurtexConnection {
   /// Вспомогательный метод чтения `status` пакета
   pub async fn read_status_packet(&self) -> Option<ClientsideStatusPacket> {
     let mut reader = self.reader.lock().await;
-    reader.read_status_packet().await
+
+    if let Some(ClientsidePacket::Status(packet)) = reader.read_packet().await {
+      Some(packet)
+    } else {
+      None
+    }
   }
 
   /// Вспомогательный метод чтения `login` пакета
   pub async fn read_login_packet(&self) -> Option<ClientsideLoginPacket> {
     let mut reader = self.reader.lock().await;
-    reader.read_login_packet().await
+
+    if let Some(ClientsidePacket::Login(packet)) = reader.read_packet().await {
+      Some(packet)
+    } else {
+      None
+    }
   }
 
   /// Вспомогательный метод чтения `configuration` пакета
   pub async fn read_configuration_packet(&self) -> Option<ClientsideConfigurationPacket> {
     let mut reader = self.reader.lock().await;
-    reader.read_configuration_packet().await
+
+    if let Some(ClientsidePacket::Configuration(packet)) = reader.read_packet().await {
+      Some(packet)
+    } else {
+      None
+    }
   }
 
   /// Вспомогательный метод чтения `play` пакета
   pub async fn read_play_packet(&self) -> Option<ClientsidePlayPacket> {
     let mut reader = self.reader.lock().await;
-    reader.read_play_packet().await
+
+    if let Some(ClientsidePacket::Play(packet)) = reader.read_packet().await {
+      Some(packet)
+    } else {
+      None
+    }
   }
 
   /// Вспомогательный метод записи пакета
@@ -367,31 +320,31 @@ impl NurtexConnection {
   /// Вспомогательный метод записи `handshake` пакета
   pub async fn write_handshake_packet(&self, packet: ServersideHandshakePacket) -> std::io::Result<()> {
     let mut writer = self.writer.lock().await;
-    writer.write_handshake_packet(packet).await
+    writer.write_packet(ServersidePacket::Handshake(packet)).await
   }
 
   /// Вспомогательный метод записи `status` пакета
   pub async fn write_status_packet(&self, packet: ServersideStatusPacket) -> std::io::Result<()> {
     let mut writer = self.writer.lock().await;
-    writer.write_status_packet(packet).await
+    writer.write_packet(ServersidePacket::Status(packet)).await
   }
 
   /// Вспомогательный метод записи `login` пакета
   pub async fn write_login_packet(&self, packet: ServersideLoginPacket) -> std::io::Result<()> {
     let mut writer = self.writer.lock().await;
-    writer.write_login_packet(packet).await
+    writer.write_packet(ServersidePacket::Login(packet)).await
   }
 
   /// Вспомогательный метод записи `configuration` пакета
   pub async fn write_configuration_packet(&self, packet: ServersideConfigurationPacket) -> std::io::Result<()> {
     let mut writer = self.writer.lock().await;
-    writer.write_configuration_packet(packet).await
+    writer.write_packet(ServersidePacket::Configuration(packet)).await
   }
 
   /// Вспомогательный метод записи `play` пакета
   pub async fn write_play_packet(&self, packet: ServersidePlayPacket) -> std::io::Result<()> {
     let mut writer = self.writer.lock().await;
-    writer.write_play_packet(packet).await
+    writer.write_packet(ServersidePacket::Play(packet)).await
   }
 
   /// Метод выключения соединения
