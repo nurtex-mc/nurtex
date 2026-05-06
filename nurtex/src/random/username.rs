@@ -20,7 +20,6 @@ pub fn generate_username(length: usize) -> String {
       let idx = thread_rng().gen_range(0..USERNAME_SAMPLE.len());
       char::from(USERNAME_SAMPLE[idx])
     })
-    .take(16)
     .collect();
 
   username
