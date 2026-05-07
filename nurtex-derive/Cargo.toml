@@ -1,6 +1,6 @@
 [package]
 name = "nurtex-derive"
-description = "Library containing auxiliary procedural macros for serializing packet types."
+description = "Library containing auxiliary procedural macros for serializing Minecraft packet types."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
