@@ -40,7 +40,7 @@ All crates focus on:
 - [x] Flexible settings (relative to the current position)
 - [ ] NBT parsing
 - [ ] Text component parsing (it's there now, but it doesn't work as it should)
-- [ ] Pinging servers
+- [x] Pinging servers
 - [ ] Basic bypass of client validity checks (planned to be implemented soon)
 - [ ] Bypass primitive bot checks
 - [ ] Bypass complex bot checks (complete imitation of a real player)
