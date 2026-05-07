@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use hashbrown::HashMap;
+use nurtex_registry::BlockKind;
 use rand::Rng;
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
@@ -518,7 +519,7 @@ impl Bot {
   }
 
   /// Метод получения блока по координатам
-  pub async fn get_block(&self, pos: BlockPos) -> Option<u32> {
+  pub async fn get_block(&self, pos: BlockPos) -> Option<BlockKind> {
     self.storage.get_block(pos).await
   }
 }
@@ -531,6 +532,7 @@ mod tests {
   use crate::bot::handlers::Handlers;
   use crate::protocol::connection::ClientsidePacket;
   use crate::protocol::packets::play::ClientsidePlayPacket;
+  use crate::protocol::types::BlockPos;
   use crate::proxy::Proxy;
 
   use crate::bot::plugins::{AutoReconnectPlugin, AutoRespawnPlugin, Plugins};
@@ -637,8 +639,35 @@ mod tests {
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     for _ in 0..10 {
-      println!("Сущности: {:?}", bot.get_entities().await);
+      for (_, entity) in bot.get_entities().await {
+        println!("Сущность: {:?}", entity);
+      }
+
       tokio::time::sleep(Duration::from_secs(3)).await;
+    }
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_chunk_storage() -> io::Result<()> {
+    let mut bot = Bot::create("nurtex_bot");
+
+    bot.connect("localhost", 25565);
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
+
+    let pos = bot.get_position().await;
+    let feet_block = bot
+      .get_block(BlockPos {
+        x: pos.x as i32,
+        y: (pos.y - 1.0) as i32,
+        z: pos.z as i32,
+      })
+      .await;
+
+    if let Some(block) = feet_block {
+      println!("Блок под ногами: {:?}", block);
     }
 
     Ok(())

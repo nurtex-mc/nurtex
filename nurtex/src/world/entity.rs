@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use crate::protocol::types::{Rotation, Vector3};
+use crate::registry::EntityKind;
+
 use uuid::Uuid;
 
 /// Идентификатор сущности в мире
@@ -26,19 +28,30 @@ impl EntityId {
 /// Сущность мира
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
-  pub entity_type: i32,
-  pub entity_uuid: Uuid,
+  /// Название сущности
+  pub kind: EntityKind,
+
+  /// UUID сущности
+  pub uuid: Uuid,
+
+  /// Позиция сущности
   pub position: Vector3,
+
+  /// Ротация сущности
   pub rotation: Rotation,
+
+  /// Скорость сущности
   pub velocity: Vector3,
+
+  /// Состояние `on_ground` сущности
   pub on_ground: bool,
 }
 
 impl Default for Entity {
   fn default() -> Self {
     Self {
-      entity_type: -1,
-      entity_uuid: Uuid::nil(),
+      kind: EntityKind::Null,
+      uuid: Uuid::nil(),
       position: Vector3::zero(),
       rotation: Rotation::zero(),
       velocity: Vector3::zero(),

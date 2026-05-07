@@ -21,3 +21,4 @@ hashbrown.workspace = true
 rand.workspace = true
 nurtex-protocol.workspace = true
 nurtex-proxy.workspace = true
+nurtex-registry.workspace = true

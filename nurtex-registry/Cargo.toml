@@ -1,0 +1,15 @@
+[package]
+name = "nurtex-registry"
+description = "Minecraft data registry."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/nurtex-registry/latest/"
+readme = "README.md"
+keywords = ["minecraft", "registry"]
+categories = ["games"]
+
+[lib]
+name = "nurtex_registry"
+path = "src/lib.rs"

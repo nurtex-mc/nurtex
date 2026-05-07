@@ -1,4 +1,5 @@
 use hashbrown::HashMap;
+use nurtex_registry::BlockKind;
 use tokio::sync::RwLock;
 
 use crate::protocol::types::{BlockPos, Chunk, ChunkPos};
@@ -79,11 +80,12 @@ impl Storage {
   }
 
   /// Метод получения блока по координатам
-  pub async fn get_block(&self, pos: BlockPos) -> Option<u32> {
+  pub async fn get_block(&self, pos: BlockPos) -> Option<BlockKind> {
     let chunk_pos = ChunkPos::from_block(pos);
     let guard = self.chunks.read().await;
     let chunk = guard.get(&chunk_pos)?;
-    chunk.get_block(pos)
+
+    if let Some(id) = chunk.get_block(pos) { BlockKind::from_id(id) } else { None }
   }
 
   /// Метод получения количества чанков

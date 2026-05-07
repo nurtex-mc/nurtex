@@ -6,6 +6,7 @@ members = [
   "nurtex-encrypt",
   "nurtex-protocol",
   "nurtex-proxy",
+  "nurtex-registry",
 ]
 resolver = "3"
 
@@ -44,3 +45,4 @@ nurtex-derive = { path = "nurtex-derive", version = "1.1.0" }
 nurtex-encrypt = { path = "nurtex-encrypt", version = "1.1.0" }
 nurtex-protocol = { path = "nurtex-protocol", version = "1.1.0" }
 nurtex-proxy = { path = "nurtex-proxy", version = "1.1.0" }
+nurtex-registry = { path = "nurtex-registry", version = "1.1.0" }

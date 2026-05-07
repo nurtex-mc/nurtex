@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use nurtex_registry::BlockKind;
 use rand::Rng;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -398,7 +399,7 @@ impl Swarm {
   }
 
   /// Метод получения блока по координатам
-  pub async fn get_block(&self, pos: BlockPos) -> Option<u32> {
+  pub async fn get_block(&self, pos: BlockPos) -> Option<BlockKind> {
     self.shared_storage.get_block(pos).await
   }
 }

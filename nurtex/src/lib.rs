@@ -16,3 +16,7 @@ pub mod protocol {
 pub mod proxy {
   pub use nurtex_proxy::*;
 }
+
+pub mod registry {
+  pub use nurtex_registry::*;
+}

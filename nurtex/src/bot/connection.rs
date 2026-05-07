@@ -2,6 +2,7 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use std::time::Duration;
 
+use nurtex_registry::EntityKind;
 use tokio::sync::{RwLock, broadcast};
 
 use crate::bot::capture::{capture_components, capture_connection};
@@ -284,8 +285,8 @@ pub async fn spawn_connection(
       }
       ClientsidePlayPacket::SpawnEntity(p) => {
         let entity = Entity {
-          entity_type: p.entity_type,
-          entity_uuid: p.entity_uuid,
+          kind: if let Some(k) = EntityKind::from_id(p.entity_type) { k } else { EntityKind::Null },
+          uuid: p.entity_uuid,
           position: p.position,
           rotation: Rotation::from_angle(p.yaw_angle, p.pitch_angle),
           velocity: p.velocity.to_vector3(),

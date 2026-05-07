@@ -528,6 +528,7 @@ dependencies = [
  "hashbrown",
  "nurtex-protocol",
  "nurtex-proxy",
+ "nurtex-registry",
  "rand 0.8.5",
  "tokio",
  "uuid",
@@ -590,6 +591,10 @@ dependencies = [
  "serde_json",
  "tokio",
 ]
+
+[[package]]
+name = "nurtex-registry"
+version = "1.1.0"
 
 [[package]]
 name = "once_cell"
