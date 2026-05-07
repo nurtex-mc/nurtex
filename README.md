@@ -31,7 +31,10 @@ All crates focus on:
 - [x] Auxiliary functionality (plugins, speedometer, just functions and methods)
 - [ ] Implementation of physics
 - [ ] Interaction with inventory
+- [ ] Interaction with blocks
 - [ ] Interaction with entities
+- [x] Entity storage
+- [x] Chunk storage
 - [x] Creating custom handlers
 - [ ] Storing world data (a small part implemented)
 - [x] Flexible settings (relative to the current position)
