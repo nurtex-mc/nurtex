@@ -9,6 +9,7 @@ use crate::bot::handlers::{ChatPayload, DisconnectPayload, Handlers};
 use crate::bot::plugins::Plugins;
 use crate::bot::types::PacketReader;
 use crate::bot::{BotComponents, BotProfile};
+use crate::protocol::types::Chunk;
 use crate::protocol::connection::utils::handle_encryption_request;
 use crate::protocol::connection::{ClientsidePacket, ConnectionState, NurtexConnection};
 use crate::protocol::packets::play::{ClientsidePlayPacket, ServersideAcceptTeleportation, ServersideClientCommand};
@@ -303,6 +304,11 @@ pub async fn spawn_connection(
         };
 
         storage.add_entity(p.entity_id, entity).await;
+      }
+      ClientsidePlayPacket::LoadChunkWithLight(p) => {
+        if let Some(chunk) = Chunk::decode_to_end(p.chunk_x, p.chunk_z, &p.chunk_data, -64) {
+          storage.add_chunk(chunk).await;
+        }
       }
       ClientsidePlayPacket::RemoveEntities(p) => {
         storage

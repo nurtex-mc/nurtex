@@ -2,7 +2,11 @@ use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 use uuid::Uuid;
 
-use crate::types::{AdditionalMessageInfo, BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, Item, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, TextComponent, Vector3};
+use crate::types::{
+  AdditionalMessageInfo, BlockPos, ChunkData, ClientCommand, Experience, Face, 
+  GameEvent, InteractType, Item, LightData, LpVector3, PhysicsFlags, PlayerAction, 
+  PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, TextComponent, Vector3,
+};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -324,15 +328,15 @@ pub struct ClientsideClearChat {
 pub struct ClientsideLoadChunkWithLight {
   pub chunk_x: i32,
   pub chunk_z: i32,
-  pub chunk_data: Vec<u8>,
-  pub light_data: Vec<u8>,
+  pub chunk_data: ChunkData,
+  pub light_data: LightData,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideBlockUpdate {
-  pub block_pos: BlockPosition,
+  pub block_pos: BlockPos,
   #[varint]
-  pub block_state: i32,
+  pub new_block: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
@@ -370,7 +374,7 @@ pub struct ClientsideLightUpdate {
   pub chunk_x: i32,
   #[varint]
   pub chunk_z: i32,
-  pub light_data: Vec<u8>,
+  pub light_data: LightData,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
@@ -481,7 +485,7 @@ pub struct ServersideInteract {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePlayerAction {
   pub action: PlayerAction,
-  pub block_pos: BlockPosition,
+  pub block_pos: BlockPos,
   pub face: Face,
   #[varint]
   pub sequence: i32,

@@ -137,9 +137,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_regressive_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10)
-      .with_join_delay(JoinDelay::regressive(5000, 10, 5))
-      .bind("localhost", 25565);
+    let mut swarm = Swarm::create_with_capacity(10).with_join_delay(JoinDelay::regressive(5000, 10, 5)).bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
