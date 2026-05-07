@@ -54,6 +54,7 @@ All crates focus on:
 - [nurtex-encrypt](https://github.com/NurtexMC/nurtex/tree/main/nurtex-encrypt): A crate containing the Minecraft TCP-connection encryption.
 - [nurtex-protocol](https://github.com/NurtexMC/nurtex/tree/main/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
 - [nurtex-proxy](https://github.com/NurtexMC/nurtex/tree/main/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
+- [nurtex-registry](https://github.com/NurtexMC/nurtex/tree/main/nurtex-registry): A crate containing various Minecraft data.
 
 # Documentation
 
