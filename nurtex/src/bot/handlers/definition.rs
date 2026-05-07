@@ -9,6 +9,7 @@ pub type HandlerResult = Box<dyn std::future::Future<Output = std::io::Result<()
 pub struct Handlers {
   pub on_login_handler: Option<Arc<dyn Fn(String) -> std::pin::Pin<HandlerResult> + Send + Sync>>,
   pub on_spawn_handler: Option<Arc<dyn Fn(String) -> std::pin::Pin<HandlerResult> + Send + Sync>>,
+  pub on_death_handler: Option<Arc<dyn Fn(String) -> std::pin::Pin<HandlerResult> + Send + Sync>>,
   pub on_chat_handler: Option<Arc<dyn Fn(String, ChatPayload) -> std::pin::Pin<HandlerResult> + Send + Sync>>,
   pub on_disconnect_handler: Option<Arc<dyn Fn(String, DisconnectPayload) -> std::pin::Pin<HandlerResult> + Send + Sync>>,
 }
@@ -19,6 +20,7 @@ impl Handlers {
     Self {
       on_login_handler: None,
       on_spawn_handler: None,
+      on_death_handler: None,
       on_chat_handler: None,
       on_disconnect_handler: None,
     }
@@ -40,6 +42,15 @@ impl Handlers {
     O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
   {
     self.on_spawn_handler = Some(Arc::new(move |username| Box::pin(handler(username))));
+  }
+
+  /// Метод установки обработчика на событие `death`
+  pub fn on_death<F, O>(&mut self, handler: F)
+  where
+    F: Fn(String) -> O + Send + Sync + 'static,
+    O: std::future::Future<Output = std::io::Result<()>> + Send + 'static,
+  {
+    self.on_death_handler = Some(Arc::new(move |username| Box::pin(handler(username))));
   }
 
   /// Метод установки обработчика на событие `chat`

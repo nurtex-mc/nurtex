@@ -123,6 +123,7 @@ pub async fn spawn_connection(
         if let Some(handler) = &handlers.on_login_handler {
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
+
           tokio::spawn(handler_clone(username_clone));
         }
 
@@ -140,9 +141,7 @@ pub async fn spawn_connection(
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
 
-          tokio::spawn(async move {
-            let _ = handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Login }).await;
-          });
+          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
@@ -226,15 +225,7 @@ pub async fn spawn_connection(
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
 
-          tokio::spawn(async move {
-            let _ = handler_clone(
-              username_clone,
-              DisconnectPayload {
-                state: ConnectionState::Configuration,
-              },
-            )
-            .await;
-          });
+          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
@@ -257,9 +248,7 @@ pub async fn spawn_connection(
     let username_clone = profile_data.username.clone();
     let handler_clone = Arc::clone(handler);
 
-    tokio::spawn(async move {
-      let _ = handler_clone(username_clone).await;
-    });
+    tokio::spawn(handler_clone(username_clone));
   }
 
   let mut packet_rx = {
@@ -382,16 +371,13 @@ pub async fn spawn_connection(
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
 
-          tokio::spawn(async move {
-            let _ = handler_clone(
-              username_clone,
-              ChatPayload {
-                message: p.message,
-                sender_uuid: p.sender_uuid,
-              },
-            )
-            .await;
-          });
+          tokio::spawn(handler_clone(
+            username_clone,
+            ChatPayload {
+              message: p.message,
+              sender_uuid: p.sender_uuid,
+            },
+          ));
         }
       }
       ClientsidePlayPacket::Ping(p) => {
@@ -448,6 +434,13 @@ pub async fn spawn_connection(
         .await?;
       }
       ClientsidePlayPacket::PlayerCombatKill(_p) => {
+        if let Some(handler) = &handlers.on_death_handler {
+          let username_clone = profile_data.username.clone();
+          let handler_clone = Arc::clone(handler);
+
+          tokio::spawn(handler_clone(username_clone));
+        }
+
         if plugins.auto_respawn.enabled {
           tokio::time::sleep(Duration::from_millis(plugins.auto_respawn.respawn_delay)).await;
 
@@ -466,9 +459,7 @@ pub async fn spawn_connection(
           let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
 
-          tokio::spawn(async move {
-            let _ = handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }).await;
-          });
+          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
