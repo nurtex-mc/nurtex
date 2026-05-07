@@ -1,4 +1,4 @@
-use crate::{CONTINUE_BIT, SEGMENT_BITS, read_byte};
+use crate::read_byte;
 
 /// Трейт для типа `i64` с варьируемой длинной (в протоколе как `VarLong`)
 pub trait VarI64
@@ -19,9 +19,9 @@ impl VarI64 for i64 {
 
     loop {
       let byte = read_byte(buffer)?;
-      value |= (((byte & SEGMENT_BITS) as u32) << position) as i64;
+      value |= (((byte & 0x7F) as u32) << position) as i64;
 
-      if (byte & CONTINUE_BIT) == 0 {
+      if (byte & 0x80) == 0 {
         break;
       }
 
@@ -45,11 +45,11 @@ impl VarI64 for i64 {
     }
 
     while value != 0 {
-      array[0] = (value & SEGMENT_BITS as i64) as u8;
+      array[0] = (value & 0x7F) as u8;
       value = (value >> 7) & (i64::MAX >> 6);
 
       if value != 0 {
-        array[0] |= CONTINUE_BIT;
+        array[0] |= 0x80;
       }
 
       buffer.write_all(&array)?;
