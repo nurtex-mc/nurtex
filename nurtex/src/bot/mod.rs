@@ -1,5 +1,6 @@
 pub mod connection;
 pub mod handlers;
+pub mod ping;
 pub mod plugins;
 pub mod types;
 
