@@ -3,7 +3,6 @@ use nurtex_derive::Packet;
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePongResponse {
-  #[varlong]
   pub timestamp: i64,
 }
 
@@ -17,6 +16,5 @@ pub struct ServersideStatusRequest;
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePingRequest {
-  #[varlong]
   pub timestamp: i64,
 }
