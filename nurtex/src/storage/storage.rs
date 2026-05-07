@@ -1,8 +1,8 @@
 use hashbrown::HashMap;
 use tokio::sync::RwLock;
 
+use crate::protocol::types::{BlockPos, Chunk, ChunkPos};
 use crate::world::Entity;
-use crate::protocol::types::{ChunkPos, Chunk, BlockPos};
 
 /// Хранилище данных
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl Storage {
     guard.remove(id);
   }
 
-  /// Метод получения клона сущности
+  /// Метод получения клона сущности по ID
   pub async fn get_entity(&self, id: &i32) -> Option<Entity> {
     let guard = self.entities.read().await;
     guard.get(id).cloned()

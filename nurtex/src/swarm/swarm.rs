@@ -7,9 +7,11 @@ use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
 use crate::bot::handlers::Handlers;
+use crate::protocol::types::BlockPos;
 use crate::random::generate_username;
 use crate::storage::Storage;
 use crate::swarm::{JoinDelay, TargetServer};
+use crate::world::Entity;
 
 /// Рой ботов.  
 ///
@@ -388,6 +390,16 @@ impl Swarm {
         let _ = handle.await;
       }
     }
+  }
+
+  /// Метод получения клона сущности по ID
+  pub async fn get_entity(&self, id: &i32) -> Option<Entity> {
+    self.shared_storage.get_entity(id).await
+  }
+
+  /// Метод получения блока по координатам
+  pub async fn get_block(&self, pos: BlockPos) -> Option<u32> {
+    self.shared_storage.get_block(pos).await
   }
 }
 

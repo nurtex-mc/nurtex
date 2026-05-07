@@ -9,7 +9,6 @@ use crate::bot::handlers::{ChatPayload, DisconnectPayload, Handlers};
 use crate::bot::plugins::Plugins;
 use crate::bot::types::PacketReader;
 use crate::bot::{BotComponents, BotProfile};
-use crate::protocol::types::Chunk;
 use crate::protocol::connection::utils::handle_encryption_request;
 use crate::protocol::connection::{ClientsidePacket, ConnectionState, NurtexConnection};
 use crate::protocol::packets::play::{ClientsidePlayPacket, ServersideAcceptTeleportation, ServersideClientCommand};
@@ -19,6 +18,7 @@ use crate::protocol::packets::{
   login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart},
   play::ServersidePlayPacket,
 };
+use crate::protocol::types::Chunk;
 use crate::protocol::types::{ClientCommand, ClientIntention, ResourcePackState, Rotation, Vector3};
 use crate::proxy::Proxy;
 use crate::storage::Storage;

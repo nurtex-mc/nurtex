@@ -15,7 +15,7 @@ use crate::bot::types::{Connection, PacketReader, PacketWriter};
 use crate::bot::{BotComponents, BotProfile, ClientInfo};
 use crate::protocol::connection::{ClientsidePacket, NurtexConnection};
 use crate::protocol::packets::play::ServersidePlayPacket;
-use crate::protocol::types::{Rotation, Vector3, BlockPos};
+use crate::protocol::types::{BlockPos, Rotation, Vector3};
 use crate::proxy::Proxy;
 use crate::random::generate_username;
 use crate::storage::Storage;
