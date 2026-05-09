@@ -189,9 +189,7 @@ impl NurtexConnection {
 
   /// Метод создания нового подключения с прокси
   pub async fn new_with_proxy(server_host: impl Into<String>, server_port: u16, proxy: &Proxy) -> std::io::Result<Self> {
-    proxy.bind(server_host.into(), server_port);
-
-    let stream = match proxy.connect().await {
+    let stream = match proxy.connect(server_host, server_port).await {
       ProxyResult::Ok(s) => s,
       ProxyResult::Err(e) => return Err(Error::new(ErrorKind::NotConnected, e.text())),
     };

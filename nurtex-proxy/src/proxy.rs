@@ -1,10 +1,8 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::{BufMut, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::RwLock;
 use tokio::time::timeout;
 
 use crate::ProxyAuth;
@@ -33,7 +31,6 @@ use crate::result::ProxyResult;
 pub struct Proxy {
   proxy_type: ProxyType,
   proxy_address: String,
-  target: Arc<RwLock<TargetServer>>,
   timeout: u64,
   auth: Option<ProxyAuth>,
 }
@@ -43,19 +40,6 @@ pub struct Proxy {
 pub enum ProxyType {
   Socks5,
   Socks4,
-}
-
-/// Структура адреса целевого сервера
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct TargetServer {
-  host: Option<String>,
-  port: Option<u16>,
-}
-
-impl Default for TargetServer {
-  fn default() -> Self {
-    Self { host: None, port: None }
-  }
 }
 
 /// Вспомогательная функция записи данных в поток
@@ -92,7 +76,6 @@ impl From<String> for Proxy {
         "socks4" => ProxyType::Socks4,
         _ => ProxyType::Socks5,
       },
-      target: Arc::new(RwLock::new(TargetServer::default())),
       timeout: 20000,
       auth: None,
     }
@@ -111,7 +94,6 @@ impl From<&str> for Proxy {
         "socks4" => ProxyType::Socks4,
         _ => ProxyType::Socks5,
       },
-      target: Arc::new(RwLock::new(TargetServer::default())),
       timeout: 20000,
       auth: None,
     }
@@ -124,7 +106,6 @@ impl Proxy {
     Self {
       proxy_address: proxy_address.into(),
       proxy_type: proxy_type,
-      target: Arc::new(RwLock::new(TargetServer::default())),
       timeout: 20000,
       auth: None,
     }
@@ -135,32 +116,26 @@ impl Proxy {
     Self {
       proxy_address: proxy_address.into(),
       proxy_type: proxy_type,
-      target: Arc::new(RwLock::new(TargetServer::default())),
       timeout: 20000,
       auth: Some(auth),
     }
   }
 
-  /// Метод установки адреса целевого сервера
-  pub fn bind(&self, target_host: String, target_port: u16) {
-    match self.target.try_write() {
-      Ok(mut g) => {
-        g.host = Some(target_host);
-        g.port = Some(target_port);
-      }
-      Err(_) => {}
-    }
-  }
-
   /// Метод установки таймаута подключения к прокси
-  pub fn set_timeout(mut self, timeout: u64) -> Self {
+  pub fn with_timeout(mut self, timeout: u64) -> Self {
     self.timeout = timeout;
     self
   }
 
   /// Метод установки типа прокси
-  pub fn set_proxy_type(mut self, proxy_type: ProxyType) -> Self {
+  pub fn with_proxy_type(mut self, proxy_type: ProxyType) -> Self {
     self.proxy_type = proxy_type;
+    self
+  }
+
+  /// Метод установки авторизации
+  pub fn with_auth(mut self, auth: ProxyAuth) -> Self {
+    self.auth = Some(auth);
     self
   }
 
@@ -185,21 +160,7 @@ impl Proxy {
   }
 
   /// Метод подключения к прокси
-  pub async fn connect(&self) -> ProxyResult<TcpStream> {
-    let (target_host, target_port) = {
-      let guard = self.target.read().await;
-
-      let Some(host) = guard.host.clone() else {
-        return ProxyResult::Err(ProxyError::new(ErrorName::InvalidData, "target server host not specified"));
-      };
-
-      let Some(port) = guard.port else {
-        return ProxyResult::Err(ProxyError::new(ErrorName::InvalidData, "target server port not specified"));
-      };
-
-      (host, port)
-    };
-
+  pub async fn connect(&self, target_host: impl Into<String>, target_port: u16) -> ProxyResult<TcpStream> {
     let mut stream = match timeout(Duration::from_millis(self.timeout), TcpStream::connect(&self.proxy_address)).await {
       Ok(result) => match result {
         Ok(s) => s,
@@ -209,8 +170,8 @@ impl Proxy {
     };
 
     match self.proxy_type {
-      ProxyType::Socks5 => self.connect_socks5(&mut stream, target_host, target_port).await?,
-      ProxyType::Socks4 => self.connect_socks4(&mut stream, target_host, target_port).await?,
+      ProxyType::Socks5 => self.connect_socks5(&mut stream, target_host.into(), target_port).await?,
+      ProxyType::Socks4 => self.connect_socks4(&mut stream, target_host.into(), target_port).await?,
     }
 
     ProxyResult::Ok(stream)
@@ -395,9 +356,8 @@ mod tests {
   #[tokio::test]
   async fn test_socks5_proxy() -> std::io::Result<()> {
     let proxy = Proxy::new("212.58.132.5:1080", ProxyType::Socks5);
-    proxy.bind("ipinfo.io".to_string(), 80);
 
-    let mut conn = match proxy.connect().await {
+    let mut conn = match proxy.connect("ipinfo.io".to_string(), 80).await {
       ProxyResult::Ok(s) => s,
       ProxyResult::Err(e) => return Err(Error::new(ErrorKind::NotConnected, e.text())),
     };
@@ -415,9 +375,8 @@ mod tests {
   #[tokio::test]
   async fn test_socks4_proxy() -> std::io::Result<()> {
     let proxy = Proxy::new("68.71.242.118:4145", ProxyType::Socks4);
-    proxy.bind("ipinfo.io".to_string(), 80);
 
-    let mut conn = match proxy.connect().await {
+    let mut conn = match proxy.connect("ipinfo.io".to_string(), 80).await {
       ProxyResult::Ok(s) => s,
       ProxyResult::Err(e) => return Err(Error::new(ErrorKind::NotConnected, e.text())),
     };

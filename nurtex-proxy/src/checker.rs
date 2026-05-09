@@ -80,9 +80,7 @@ impl ProxyChecker for Proxy {
   }
 
   async fn get_ip_info(&self) -> Option<IpInfo> {
-    self.bind("ipinfo.io".to_string(), 80);
-
-    let mut stream = match self.connect().await {
+    let mut stream = match self.connect("ipinfo.io", 80).await {
       ProxyResult::Ok(s) => s,
       ProxyResult::Err(_) => return None,
     };
