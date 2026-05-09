@@ -4,8 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicI8, AtomicI32, Ordering};
 
 use nurtex_encrypt::{AesDecryptor, AesEncryptor};
-use nurtex_proxy::Proxy;
-use nurtex_proxy::result::ProxyResult;
+use nurtex_proxy::{Proxy, ProxyResult};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -166,7 +165,7 @@ impl ConnectionWriter {
       ServersidePacket::Configuration(p) => serialize_packet(&p),
       ServersidePacket::Play(p) => serialize_packet(&p),
     }
-    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to serialize packet"))?;
+    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to serialize packet"))?;
 
     let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
     let mut encryptor_guard = self.encryptor.lock().await;

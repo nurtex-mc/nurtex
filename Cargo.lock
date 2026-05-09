@@ -587,6 +587,7 @@ name = "nurtex-proxy"
 version = "1.1.0"
 dependencies = [
  "bytes",
+ "hashbrown",
  "serde",
  "serde_json",
  "tokio",

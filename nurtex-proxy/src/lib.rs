@@ -1,10 +1,11 @@
-pub mod error;
-pub mod result;
+pub mod tools;
 
 mod auth;
-mod checker;
+mod error;
 mod proxy;
+mod result;
 
 pub use auth::*;
-pub use checker::*;
+pub use error::*;
 pub use proxy::*;
+pub use result::*;
