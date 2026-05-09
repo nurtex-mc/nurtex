@@ -69,7 +69,7 @@ async fn main() {
   // Создаём рой и запускаем его на сервер
   Swarm::create()
     .with_bots(bots)
-    .цшер_join_delay(JoinDelay::fixed(500))
+    .with_join_delay(JoinDelay::fixed(500))
     .bind("localhost", 25565)
     .launch_and_wait()
     .await
