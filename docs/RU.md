@@ -315,9 +315,9 @@ async fn main() -> std::io::Result<()> {
 
 ```rust
 use nurtex::bot::Bot;
-use nurtex_protocol::connection::ClientsidePacket;
-use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
-use nurtex_protocol::types::RelativeHand;
+use nurtex::protocol::connection::ClientsidePacket;
+use nurtex::protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
+use nurtex::protocol::types::RelativeHand;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -369,11 +369,10 @@ async fn main() -> std::io::Result<()> {
 
 ## Особенности роя
 
-- **Удобное управление:** Рой предлагает множество различных методов для простого управления ботами - `add_bot(s)`, `with_bot(s)`, `for_each_parallel`, `for_each_consistent`...
+- **Удобное управление:** Рой предлагает множество различных методов для простого управления ботами.
 - **Гибкая задержка подключений:** Рой позволяет задавать гибкую `JoinDelay` в качестве задержки между подключениями ботов.
 - **Общее хранилище:** Рой позволяет ботам хранить данные о мире в едином месте, тем самым уменьшая потребление ОЗУ.
 - **Общие обработчики:** Рой позволяет ботам использовать общие обработчики событий, тем самым уменьшая потребление ОЗУ.
-- **Спидометр:** Связка роя и спидометра позволяет замерять скорость подключения ботов.
 
 ## Особенности кластера
 

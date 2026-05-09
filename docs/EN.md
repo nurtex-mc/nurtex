@@ -313,9 +313,9 @@ Let's create a bot that, with each `PlayerChat` packet received, will check for 
 
 ```rust
 use nurtex::bot::Bot;
-use nurtex_protocol::connection::ClientsidePacket;
-use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
-use nurtex_protocol::types::RelativeHand;
+use nurtex::protocol::connection::ClientsidePacket;
+use nurtex::protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
+use nurtex::protocol::types::RelativeHand;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -367,11 +367,10 @@ The `nurtex` library contains three different architectures that solve specific 
 
 ## Swarm features
 
-- **Convenient management:** Swarm offers a variety of methods for easily managing bots - `add_bot(s)`, `with_bot(s)`, `for_each_parallel`, `for_each_consistent`...
+- **Convenient management:** Swarm offers a variety of methods for easily managing bots.
 - **Flexible join delay:** Swarm allows you to set a flexible `JoinDelay` delay between bot joins.
 - **Shared storage:** Swarm allows bots to store world data in a single location, thereby reducing RAM consumption.
 - **Shared handlers:** Swarm allows bots to use shared event handlers, thereby reducing RAM consumption.
-- **Speedometer:** The combination of Swarm and Speedometer allows you to measure bot connection speed.
 
 ## Cluster features
 
