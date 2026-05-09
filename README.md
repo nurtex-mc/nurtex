@@ -14,6 +14,11 @@ All crates focus on:
 - **Asynchrony:** Almost all crates rely on an asynchronous code environment.
 - **Simplicity:** We try to make the logic of crates understandable for everyone.
 
+# Social
+
+- [**Discord**](https://discord.gg/ck5AY7dBJ)
+- [**Telegram**](https://t.me/nurtexmc)
+
 # Tasks and Goals
 
 - [x] Bot architecture
@@ -21,9 +26,7 @@ All crates focus on:
 - [x] Cluster architecture
 - [x] Connecting to servers
 - [x] Encryption
-- [x] SOCKS4 proxy support
-- [x] SOCKS5 proxy support
-- [ ] HTTP(S) proxy support
+- [x] SOCKS4 / SOCKS5 proxy support
 - [x] Built-in proxy checker
 - [x] Login processing
 - [x] Configuration processing
