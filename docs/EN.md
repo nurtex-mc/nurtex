@@ -6,7 +6,7 @@ You need to add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nurtex = "1.1.0" # May be a different version
+nurtex = "1.2.0" # May be a different version
 ```
 
 Or type in the terminal:
