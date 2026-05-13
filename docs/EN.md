@@ -6,7 +6,7 @@ You need to add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nurtex = "1.2.0" # May be a different version
+nurtex = { version = "1.2.1", features = ["all"] }
 ```
 
 Or type in the terminal:
@@ -15,6 +15,17 @@ Or type in the terminal:
 cargo add nurtex
 ```
 
+The `nurtex` library also has several features:
+
+- `bot`: basic bot functionality.
+- `proxy`: proxy support for bot (includes `bot`).
+- `swarm`: swarm functionality (includes `bot`).
+- `cluster`: cluster functionality (includes `bot`, `swarm`).
+- `speedometer`: speedometer functionality (includes `bot`).
+- `random`: data generation functionality.
+- `all`: includes all features.
+
+Default feature set includes: `bot`, `proxy`, `swarm`
 
 ## First program
 
@@ -59,8 +70,7 @@ Now let's write a bot that will connect to the server and send a specific messag
 ```rust
 use std::time::Duration;
 
-use nurtex::Bot;
-use nurtex::bot::BotChatExt;
+use nurtex::{Bot, BotChatExt};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -236,8 +246,8 @@ Let's create a swarm with a speedometer and get the startup speed (speed is meas
 ```rust
 use std::sync::Arc;
 
-use nurtex::bot::Bot;
-use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
+use nurtex::{Bot, JoinDelay, Swarm};
+use nurtex::speedometer::{Speedometer, SpeedometerEvent};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -312,7 +322,7 @@ The `nurtex` library allows you to read (`ClientsidePacket`) and write (`Servers
 Let's create a bot that, with each `PlayerChat` packet received, will check for the word `swing` in the message and send a `SwingArm` packet to the server. This way, we can immediately see how reading and writing packets works in one example:
 
 ```rust
-use nurtex::bot::Bot;
+use nurtex::Bot;
 use nurtex::protocol::connection::ClientsidePacket;
 use nurtex::protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
 use nurtex::protocol::types::RelativeHand;

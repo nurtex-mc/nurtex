@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-nurtex = "1.2.0" # Может быть другая версия
+nurtex = { version = "1.2.1", features = ["all"] }
 ```
 
 Или написать в терминале:
@@ -15,6 +15,17 @@ nurtex = "1.2.0" # Может быть другая версия
 cargo add nurtex
 ```
 
+Так же библиотека `nurtex` имеет несколько фич:
+
+- `bot`: основной функционал бота.
+- `proxy`: поддеркжка прокси для бота (включает в себя `bot`).
+- `swarm`: функционал роя (включает в себя `bot`).
+- `cluster`: функционал кластера (включает в себя `bot`, `swarm`).
+- `speedometer`: функционал спидометра (включает в себя `bot`).
+- `random`: функционал генерации данных.
+- `all`: включает все фичи.
+
+Набор фич по умолчанию включает в себя: `bot`, `proxy`, `swarm`
 
 ## Первая программа
 
@@ -59,8 +70,7 @@ async fn main() -> std::io::Result<()> {
 ```rust
 use std::time::Duration;
 
-use nurtex::Bot;
-use nurtex::bot::BotChatExt;
+use nurtex::{Bot, BotChatExt};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -237,8 +247,8 @@ nurtex_bot_5 подключен
 ```rust
 use std::sync::Arc;
 
-use nurtex::bot::Bot;
-use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
+use nurtex::{Bot, JoinDelay, Swarm};
+use nurtex::speedometer::{Speedometer, SpeedometerEvent};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -314,7 +324,7 @@ async fn main() -> std::io::Result<()> {
 Давай создадим бота, который при каждом полученном пакете `PlayerChat` будет проверять наличие слова `swing` в сообщение и отправлять на сервер пакет `SwingArm`. Так мы в одном примере сразу сможем посмотреть как работает чтение и запись пакетов:
 
 ```rust
-use nurtex::bot::Bot;
+use nurtex::Bot;
 use nurtex::protocol::connection::ClientsidePacket;
 use nurtex::protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
 use nurtex::protocol::types::RelativeHand;
