@@ -526,6 +526,7 @@ name = "nurtex"
 version = "1.2.0"
 dependencies = [
  "hashbrown",
+ "nurtex",
  "nurtex-protocol",
  "nurtex-proxy",
  "nurtex-registry",

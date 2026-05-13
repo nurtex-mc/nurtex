@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use hashbrown::HashMap;
-use rand::Rng;
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -16,12 +15,18 @@ use crate::bot::{BotComponents, BotProfile, ClientInfo};
 use crate::protocol::connection::{ClientsidePacket, NurtexConnection};
 use crate::protocol::packets::play::ServersidePlayPacket;
 use crate::protocol::types::{BlockPos, Rotation, Vector3};
-use crate::proxy::Proxy;
-use crate::random::generate_username;
 use crate::registry::BlockKind;
 use crate::storage::Storage;
-use crate::swarm::Speedometer;
 use crate::world::{Entity, EntityId};
+
+#[cfg(feature = "proxy")]
+use crate::proxy::Proxy;
+
+#[cfg(feature = "speedometer")]
+use crate::speedometer::Speedometer;
+
+#[cfg(feature = "random")]
+use crate::random::generate_username;
 
 /// Структура Minecraft бота.
 ///
@@ -59,8 +64,10 @@ pub struct Bot {
   connection_timeout: u64,
   reader_tx: PacketReader,
   writer_tx: PacketWriter,
-  proxy: Arc<Option<Proxy>>,
+  #[cfg(feature = "proxy")]
+  proxy: Option<Arc<Proxy>>,
   plugins: Arc<Plugins>,
+  #[cfg(feature = "speedometer")]
   speedometer: Option<Arc<Speedometer>>,
   components: Arc<RwLock<BotComponents>>,
   storage: Arc<Storage>,
@@ -70,26 +77,30 @@ pub struct Bot {
 impl Bot {
   /// Метод создания нового бота
   pub fn create(username: impl Into<String>) -> Self {
-    Self::create_with_options(username, 45, 45, None, None)
+    Self::create_with_options(username, 45, 45)
   }
 
   /// Метод создания нового бота с случайным юзернеймом
+  #[cfg(feature = "random")]
   pub fn create_random() -> Self {
-    Self::create_with_options(generate_username(rand::thread_rng().gen_range(5..=14)), 45, 45, None, None)
+    use rand::Rng;
+    Self::create_with_options(generate_username(rand::thread_rng().gen_range(5..=14)), 45, 45)
   }
 
   /// Метод создания нового бота с прокси
+  #[cfg(feature = "proxy")]
   pub fn create_with_proxy(username: impl Into<String>, proxy: Proxy) -> Self {
-    Self::create_with_options(username, 45, 45, None, Some(proxy))
+    Self::create_with_options(username, 45, 45).with_proxy(proxy)
   }
 
   /// Метод создания нового бота со спидометром
+  #[cfg(feature = "speedometer")]
   pub fn create_with_speedometer(username: impl Into<String>, speedometer: Arc<Speedometer>) -> Self {
-    Self::create_with_options(username, 45, 45, Some(speedometer), None)
+    Self::create_with_options(username, 45, 45).with_speedometer(speedometer)
   }
 
   /// Метод создания нового бота с заданными опциями
-  pub fn create_with_options(username: impl Into<String>, reader_capacity: usize, writer_capacity: usize, speedometer: Option<Arc<Speedometer>>, proxy: Option<Proxy>) -> Self {
+  pub fn create_with_options(username: impl Into<String>, reader_capacity: usize, writer_capacity: usize) -> Self {
     let (reader_tx, _) = broadcast::channel(reader_capacity);
     let (writer_tx, _) = broadcast::channel(writer_capacity);
 
@@ -102,13 +113,15 @@ impl Bot {
       plugins: Arc::new(Plugins::default()),
       protocol_version: 774,
       connection_timeout: 14000,
-      proxy: Arc::new(proxy),
+      #[cfg(feature = "proxy")]
+      proxy: None,
       entity_id: Arc::new(EntityId::negative()),
       username: name,
       handle: None,
       reader_tx: Arc::new(reader_tx),
       writer_tx: Arc::new(writer_tx),
-      speedometer,
+      #[cfg(feature = "speedometer")]
+      speedometer: None,
       components: Arc::new(RwLock::new(BotComponents::default())),
       storage: Arc::new(Storage::null()),
       handlers: Arc::new(Handlers::new()),
@@ -193,6 +206,7 @@ impl Bot {
   }
 
   /// Метод установки спидометра
+  #[cfg(feature = "speedometer")]
   pub fn with_speedometer(mut self, speedometer: Arc<Speedometer>) -> Self {
     self.speedometer = Some(speedometer);
     self
@@ -211,8 +225,9 @@ impl Bot {
   }
 
   /// Метод установки прокси
+  #[cfg(feature = "proxy")]
   pub fn with_proxy(mut self, proxy: Proxy) -> Self {
-    self.proxy = Arc::new(Some(proxy));
+    self.proxy = Some(Arc::new(proxy));
     self
   }
 
@@ -261,8 +276,9 @@ impl Bot {
   }
 
   /// Метод получения прокси бота
-  pub fn get_proxy(&self) -> Arc<Option<Proxy>> {
-    Arc::clone(&self.proxy)
+  #[cfg(feature = "proxy")]
+  pub fn get_proxy(&self) -> Option<Arc<Proxy>> {
+    if let Some(proxy) = &self.proxy { Some(Arc::clone(&proxy)) } else { None }
   }
 
   /// Метод получения хранилища
@@ -324,19 +340,25 @@ impl Bot {
 
   /// Метод подключения бота к серверу, возвращающий хэндл подключения
   pub fn connect_with_handle(&self, server_host: impl Into<String>, server_port: u16) -> JoinHandle<Result<(), std::io::Error>> {
-    let connection = Arc::clone(&self.connection);
-    let profile = Arc::clone(&self.profile);
-    let components = Arc::clone(&self.components);
-    let entity_id = Arc::clone(&self.entity_id);
+    let connection = self.connection.clone();
+    let profile = self.profile.clone();
+    let components = self.components.clone();
+    let entity_id = self.entity_id.clone();
+    let plugins = self.plugins.clone();
+    let reader_tx = self.reader_tx.clone();
+    let writer_tx = self.writer_tx.clone();
+    let storage = self.storage.clone();
+    let handlers = self.handlers.clone();
+
+    #[cfg(feature = "speedometer")]
     let speedometer = self.speedometer.clone();
-    let plugins = Arc::clone(&self.plugins);
-    let proxy = Arc::clone(&self.proxy);
-    let reader_tx = Arc::clone(&self.reader_tx);
-    let writer_tx = Arc::clone(&self.writer_tx);
-    let storage = Arc::clone(&self.storage);
-    let handlers = Arc::clone(&self.handlers);
+
+    #[cfg(feature = "proxy")]
+    let proxy = self.proxy.clone();
+
     let protocol_version = self.protocol_version;
     let coonnection_timeout = self.connection_timeout;
+
     let host = server_host.into();
     let port = server_port;
 
@@ -353,12 +375,14 @@ impl Bot {
           &profile,
           &components,
           &entity_id,
+          #[cfg(feature = "speedometer")]
           &speedometer,
           &plugins,
           &reader_tx,
           &storage,
           protocol_version,
           coonnection_timeout,
+          #[cfg(feature = "proxy")]
           &proxy,
           &host,
           port,

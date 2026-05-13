@@ -20,11 +20,15 @@ use crate::protocol::packets::{
 };
 use crate::protocol::types::Chunk;
 use crate::protocol::types::{ClientCommand, ClientIntention, ResourcePackState, Rotation, Vector3};
-use crate::proxy::Proxy;
 use crate::registry::EntityKind;
 use crate::storage::Storage;
-use crate::swarm::Speedometer;
 use crate::world::{Entity, EntityId};
+
+#[cfg(feature = "proxy")]
+use crate::proxy::Proxy;
+
+#[cfg(feature = "speedometer")]
+use crate::speedometer::Speedometer;
 
 /// Функция спавна процесса подключения
 pub async fn spawn_connection(
@@ -32,13 +36,13 @@ pub async fn spawn_connection(
   profile: &Arc<RwLock<BotProfile>>,
   components: &Arc<RwLock<BotComponents>>,
   entity_id: &Arc<EntityId>,
-  speedometer: &Option<Arc<Speedometer>>,
+  #[cfg(feature = "speedometer")] speedometer: &Option<Arc<Speedometer>>,
   plugins: &Plugins,
   reader_tx: &PacketReader,
   storage: &Arc<Storage>,
   protocol_version: i32,
   coonnection_timeout: u64,
-  proxy: &Arc<Option<Proxy>>,
+  #[cfg(feature = "proxy")] proxy: &Option<Arc<Proxy>>,
   host: &str,
   port: u16,
   handlers: &Arc<Handlers>,
@@ -52,7 +56,8 @@ pub async fn spawn_connection(
     *conn_guard = None;
   }
 
-  let conn = match proxy.as_ref() {
+  #[cfg(feature = "proxy")]
+  let conn = match proxy {
     Some(proxy) => match tokio::time::timeout(Duration::from_millis(coonnection_timeout), NurtexConnection::new_with_proxy(host, port, proxy)).await {
       Ok(result) => match result {
         Ok(c) => c,
@@ -67,6 +72,15 @@ pub async fn spawn_connection(
       },
       Err(_) => return Err(Error::new(ErrorKind::TimedOut, "failed to receive a response from server within specified timeout")),
     },
+  };
+
+  #[cfg(not(feature = "proxy"))]
+  let conn = match tokio::time::timeout(Duration::from_millis(coonnection_timeout), NurtexConnection::new(host, port)).await {
+    Ok(result) => match result {
+      Ok(c) => c,
+      Err(err) => return Err(err),
+    },
+    Err(_) => return Err(Error::new(ErrorKind::TimedOut, "failed to receive a response from server within specified timeout")),
   };
 
   *connection.write().await = Some(conn);
@@ -241,6 +255,7 @@ pub async fn spawn_connection(
   })
   .await?;
 
+  #[cfg(feature = "speedometer")]
   if let Some(speedometer) = speedometer {
     speedometer.bot_joined(profile_data.username.clone());
   }

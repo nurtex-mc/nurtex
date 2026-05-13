@@ -2,17 +2,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use nurtex_registry::BlockKind;
-use rand::Rng;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
 use crate::bot::handlers::Handlers;
 use crate::protocol::types::BlockPos;
-use crate::random::generate_username;
 use crate::storage::Storage;
 use crate::swarm::{JoinDelay, TargetServer};
 use crate::world::Entity;
+
+#[cfg(feature = "random")]
+use crate::random::generate_username;
 
 /// Рой ботов.  
 ///
@@ -93,7 +94,10 @@ impl Swarm {
   }
 
   /// Метод создания нового роя со случайными ботами
+  #[cfg(feature = "random")]
   pub fn create_random(bots_count: usize) -> Self {
+    use rand::Rng;
+
     let mut swarm = Self::create();
 
     for _ in 0..bots_count {

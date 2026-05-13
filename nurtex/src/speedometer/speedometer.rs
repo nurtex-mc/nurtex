@@ -126,10 +126,8 @@ mod tests {
   use std::sync::Arc;
   use std::time::Duration;
 
-  use crate::{
-    bot::Bot,
-    swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm},
-  };
+  use crate::speedometer::{Speedometer, SpeedometerEvent};
+  use crate::{Bot, JoinDelay, Swarm};
 
   #[tokio::test]
   async fn test_instant() -> io::Result<()> {

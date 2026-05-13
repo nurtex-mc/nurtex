@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use nurtex::bot::Bot;
-use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
+use nurtex::speedometer::{Speedometer, SpeedometerEvent};
+use nurtex::{Bot, JoinDelay, Swarm};
 
 #[tokio::main]
 async fn main() {

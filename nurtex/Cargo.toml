@@ -1,13 +1,13 @@
 [package]
 name = "nurtex"
-description = "Library for creating Minecraft bots."
+description = "Create efficient and lightweight Minecraft bots or clients."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 documentation = "https://docs.rs/nurtex/latest/"
 readme = "README.md"
-keywords = ["minecraft", "bot", "async", "simple"]
+keywords = ["minecraft", "bot", "async", "fast"]
 categories = ["games", "asynchronous"]
 
 [lib]
@@ -22,3 +22,16 @@ rand.workspace = true
 nurtex-protocol.workspace = true
 nurtex-proxy.workspace = true
 nurtex-registry.workspace = true
+
+[dev-dependencies]
+nurtex = { path = ".", features = ["all"] }
+
+[features]
+bot = []
+proxy = ["bot"]
+swarm = ["bot"]
+cluster = ["bot", "swarm"]
+speedometer = []
+random = []
+default = ["bot", "proxy", "swarm"]
+all = ["bot", "proxy", "swarm", "cluster", "speedometer", "random"]
