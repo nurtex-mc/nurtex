@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use hashbrown::HashMap;
-use nurtex_registry::BlockKind;
 use rand::Rng;
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
@@ -19,6 +18,7 @@ use crate::protocol::packets::play::ServersidePlayPacket;
 use crate::protocol::types::{BlockPos, Rotation, Vector3};
 use crate::proxy::Proxy;
 use crate::random::generate_username;
+use crate::registry::BlockKind;
 use crate::storage::Storage;
 use crate::swarm::Speedometer;
 use crate::world::{Entity, EntityId};

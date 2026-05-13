@@ -2,7 +2,6 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use std::time::Duration;
 
-use nurtex_registry::EntityKind;
 use tokio::sync::{RwLock, broadcast};
 
 use crate::bot::capture::{capture_components, capture_connection};
@@ -22,6 +21,7 @@ use crate::protocol::packets::{
 use crate::protocol::types::Chunk;
 use crate::protocol::types::{ClientCommand, ClientIntention, ResourcePackState, Rotation, Vector3};
 use crate::proxy::Proxy;
+use crate::registry::EntityKind;
 use crate::storage::Storage;
 use crate::swarm::Speedometer;
 use crate::world::{Entity, EntityId};
