@@ -25,6 +25,7 @@ nurtex-registry.workspace = true
 
 [dev-dependencies]
 nurtex = { path = ".", features = ["all"] }
+tokio = { version = "1.50.0", features = ["full"] }
 
 [features]
 bot = []

@@ -13,11 +13,11 @@ use nurtex_protocol::types::{AccurateHand, ChatMode, ClientIntention, DisplayedS
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-  let target_host = "locahost".to_string();
+  let target_host = "localhost".to_string();
   let target_port = 25565;
 
   // Создаём подключение (состояние Handshake)
-  let conn = match NurtexConnection::new(&target_host, 25565).await {
+  let conn = match NurtexConnection::new(&target_host, target_port).await {
     Ok(c) => c,
     Err(_) => return Ok(()),
   };
@@ -38,7 +38,7 @@ async fn main() -> io::Result<()> {
   // Отправляем пакет LoginStart где указываем имя клиента и UUID (для оффлайн серверов просто нулевой)
   conn
     .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
-      username: "NurtexBot".to_string(),
+      username: "nurtex_bot".to_string(),
       uuid: uuid::Uuid::nil(),
     }))
     .await?;

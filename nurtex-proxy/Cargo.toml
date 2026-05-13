@@ -20,3 +20,6 @@ bytes.workspace = true
 hashbrown.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1.50.0", features = ["full"] }
