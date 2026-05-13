@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use nurtex::bot::Bot;
+use nurtex::Bot;
 use nurtex::protocol::packets::play::{ServersidePlayPacket, ServersideSwingArm};
 use nurtex::protocol::types::RelativeHand;
 

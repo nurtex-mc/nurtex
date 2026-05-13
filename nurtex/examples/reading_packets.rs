@@ -1,4 +1,4 @@
-use nurtex::bot::Bot;
+use nurtex::Bot;
 use nurtex::protocol::connection::ClientsidePacket;
 use nurtex::protocol::packets::play::ClientsidePlayPacket;
 

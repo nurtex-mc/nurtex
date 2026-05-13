@@ -1,5 +1,4 @@
-use nurtex::bot::Bot;
-use nurtex::swarm::{JoinDelay, Swarm};
+use nurtex::{Bot, JoinDelay, Swarm};
 
 #[tokio::main]
 async fn main() {

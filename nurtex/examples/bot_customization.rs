@@ -1,4 +1,4 @@
-use nurtex::bot::Bot;
+use nurtex::Bot;
 use nurtex::bot::plugins::{AutoReconnectPlugin, Plugins};
 
 #[tokio::main]

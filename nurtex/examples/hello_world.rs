@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use nurtex::bot::{Bot, BotChatExt};
+use nurtex::{Bot, BotChatExt};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {

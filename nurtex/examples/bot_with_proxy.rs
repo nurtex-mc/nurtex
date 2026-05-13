@@ -1,8 +1,7 @@
 use std::time::Duration;
 
-use nurtex::bot::{Bot, BotChatExt};
-use nurtex::proxy::Proxy;
-use nurtex_proxy::ProxyType;
+use nurtex::proxy::{Proxy, ProxyType};
+use nurtex::{Bot, BotChatExt};
 
 /// Адрес SOCKS5 прокси, например `164.85.71.8:1080`
 const PROXY_ADDRESS: &str = "YOUR_SOCKS5_PROXY";

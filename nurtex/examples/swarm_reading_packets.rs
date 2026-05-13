@@ -1,7 +1,6 @@
-use nurtex::bot::Bot;
 use nurtex::protocol::connection::ClientsidePacket;
 use nurtex::protocol::packets::play::ClientsidePlayPacket;
-use nurtex::swarm::Swarm;
+use nurtex::{Bot, Swarm};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
