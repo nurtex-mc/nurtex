@@ -11,7 +11,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "1.2.0"
+version = "1.2.1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/NurtexMC/nurtex"
@@ -38,9 +38,9 @@ syn = { version = "2.0", features = ["full"] }
 proc-macro2 = "1.0"
 hashbrown = "0.17.0"
 once_cell = "1.21.4"
-nurtex-codec = { path = "nurtex-codec", version = "1.2.0" }
-nurtex-derive = { path = "nurtex-derive", version = "1.2.0" }
-nurtex-encrypt = { path = "nurtex-encrypt", version = "1.2.0" }
-nurtex-protocol = { path = "nurtex-protocol", version = "1.2.0" }
-nurtex-proxy = { path = "nurtex-proxy", version = "1.2.0" }
-nurtex-registry = { path = "nurtex-registry", version = "1.2.0" }
+nurtex-codec = { path = "nurtex-codec", version = "1.2.1" }
+nurtex-derive = { path = "nurtex-derive", version = "1.2.1" }
+nurtex-encrypt = { path = "nurtex-encrypt", version = "1.2.1" }
+nurtex-protocol = { path = "nurtex-protocol", version = "1.2.1" }
+nurtex-proxy = { path = "nurtex-proxy", version = "1.2.1" }
+nurtex-registry = { path = "nurtex-registry", version = "1.2.1" }

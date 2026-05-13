@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "hashbrown",
  "nurtex",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-codec"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "byteorder",
  "uuid",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-derive"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-encrypt"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "aes",
  "cfb8",
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-protocol"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "flate2",
  "futures",
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-proxy"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "bytes",
  "hashbrown",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-registry"
-version = "1.2.0"
+version = "1.2.1"
 
 [[package]]
 name = "once_cell"
