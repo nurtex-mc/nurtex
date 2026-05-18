@@ -15,6 +15,7 @@ name = "nurtex_protocol"
 path = "src/lib.rs"
 
 [dependencies]
+bytes.workspace = true
 flate2.workspace = true
 futures.workspace = true
 futures-util.workspace = true

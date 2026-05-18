@@ -3,6 +3,7 @@ use std::io::{Cursor, Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI8, AtomicI32, Ordering};
 
+use bytes::BytesMut;
 use nurtex_encrypt::{AesDecryptor, AesEncryptor};
 use nurtex_proxy::{Proxy, ProxyResult};
 use tokio::io::AsyncWriteExt;
@@ -96,7 +97,7 @@ pub struct ConnectionReader {
   read_stream: OwnedReadHalf,
 
   /// Текущий буффер данных
-  buffer: Cursor<Vec<u8>>,
+  buffer: BytesMut,
 
   /// Декодировщик данных
   decryptor: Arc<Mutex<Option<AesDecryptor>>>,
@@ -143,7 +144,7 @@ impl ConnectionReader {
     let mut decryptor_guard = self.decryptor.lock().await;
 
     let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(raw_packet.as_ref());
+    let mut cursor = Cursor::new(&raw_packet[..]);
 
     match state {
       ConnectionState::Handshake => deserialize_packet::<ClientsideHandshakePacket>(&mut cursor).map(ClientsidePacket::Handshake),
@@ -159,19 +160,19 @@ impl ConnectionWriter {
   /// Метод записи пакета
   pub async fn write_packet(&mut self, packet: ServersidePacket) -> std::io::Result<()> {
     let serialized = match packet {
-      ServersidePacket::Handshake(p) => serialize_packet(&p),
-      ServersidePacket::Status(p) => serialize_packet(&p),
-      ServersidePacket::Login(p) => serialize_packet(&p),
-      ServersidePacket::Configuration(p) => serialize_packet(&p),
-      ServersidePacket::Play(p) => serialize_packet(&p),
-    }
-    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to serialize packet"))?;
+      ServersidePacket::Handshake(p) => serialize_packet(&p)?,
+      ServersidePacket::Status(p) => serialize_packet(&p)?,
+      ServersidePacket::Login(p) => serialize_packet(&p)?,
+      ServersidePacket::Configuration(p) => serialize_packet(&p)?,
+      ServersidePacket::Play(p) => serialize_packet(&p)?,
+    };
 
     let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
     let mut encryptor_guard = self.encryptor.lock().await;
 
     write_raw_packet(&serialized, &mut self.write_stream, compression_threshold, &mut *encryptor_guard).await
   }
+
   /// Метод выключения потока записи
   pub async fn shutdown(&mut self) -> std::io::Result<()> {
     self.write_stream.shutdown().await
@@ -210,7 +211,7 @@ impl NurtexConnection {
 
     let reader = ConnectionReader {
       read_stream: rh,
-      buffer: Cursor::new(Vec::new()),
+      buffer: BytesMut::with_capacity(64 * 1024),
       compression_threshold: Arc::clone(&compression_threshold),
       decryptor: Arc::new(Mutex::new(None)),
       state: Arc::clone(&state),

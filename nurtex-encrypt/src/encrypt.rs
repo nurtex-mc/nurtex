@@ -1,24 +1,9 @@
 use aes::Aes128;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit, inout::InOutBuf};
 use rand::{Rng, thread_rng};
-use sha1::{Digest, Sha1};
 
 pub type AesEncryptor = cfb8::Encryptor<Aes128>;
 pub type AesDecryptor = cfb8::Decryptor<Aes128>;
-
-fn generate_secret_key() -> [u8; 16] {
-  let mut key = [0u8; 16];
-  thread_rng().fill(&mut key);
-  key
-}
-
-pub fn digest_data(server_id: &[u8], public_key: &[u8], private_key: &[u8]) -> Vec<u8> {
-  let mut digest = Sha1::new();
-  digest.update(server_id);
-  digest.update(private_key);
-  digest.update(public_key);
-  digest.finalize().to_vec()
-}
 
 #[derive(Debug)]
 pub struct EncryptResult {
@@ -27,7 +12,15 @@ pub struct EncryptResult {
   pub encrypted_challenge: Vec<u8>,
 }
 
-pub fn encrypt(public_key: &[u8], challenge: &[u8]) -> Option<EncryptResult> {
+/// Функция генерации секретного ключа
+fn generate_secret_key() -> [u8; 16] {
+  let mut key = [0u8; 16];
+  thread_rng().fill(&mut key);
+  key
+}
+
+/// Метод попытки создания шифрования на основе публичного ключа и челленжда
+pub fn try_encrypt(public_key: &[u8], challenge: &[u8]) -> Option<EncryptResult> {
   let secret_key = generate_secret_key();
 
   let encrypted_public_key = rsa_public_encrypt_pkcs1::encrypt(public_key, &secret_key).ok()?;
@@ -40,16 +33,19 @@ pub fn encrypt(public_key: &[u8], challenge: &[u8]) -> Option<EncryptResult> {
   })
 }
 
+/// Функция создания AES-шифра
 pub fn create_cipher(key: &[u8]) -> (AesEncryptor, AesDecryptor) {
   (AesEncryptor::new_from_slices(key, key).unwrap(), AesDecryptor::new_from_slices(key, key).unwrap())
 }
 
-pub fn encrypt_packet(cipher: &mut AesEncryptor, packet: &mut [u8]) {
-  let (chunks, _) = InOutBuf::from(packet).into_chunks();
-  cipher.encrypt_blocks_inout_mut(chunks);
+/// Функция шифрования данных
+pub fn encrypt_data(cipher: &mut AesEncryptor, buf: &mut [u8]) {
+  let (blocks, _) = InOutBuf::from(buf).into_chunks();
+  cipher.encrypt_blocks_inout_mut(blocks);
 }
 
-pub fn decrypt_packet(cipher: &mut AesDecryptor, packet: &mut [u8]) {
-  let (chunks, _) = InOutBuf::from(packet).into_chunks();
-  cipher.decrypt_blocks_inout_mut(chunks);
+/// Функция расшифровки данных
+pub fn decrypt_data(cipher: &mut AesDecryptor, buf: &mut [u8]) {
+  let (blocks, _) = InOutBuf::from(buf).into_chunks();
+  cipher.decrypt_blocks_inout_mut(blocks);
 }

@@ -27,7 +27,6 @@ aes = "0.8.4"
 cfb8 = "0.8.1"
 cipher = "0.4"
 rand = "0.8"
-sha1 = "0.10"
 rsa_public_encrypt_pkcs1 = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 uuid = { version = "1.11", features = ["serde"] }
