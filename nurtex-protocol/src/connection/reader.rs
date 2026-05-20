@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 use std::io::{Cursor, Read};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicI8, AtomicI32, Ordering};
 
 use bytes::{Buf, Bytes, BytesMut};
 use flate2::read::ZlibDecoder;
@@ -7,9 +9,59 @@ use futures::StreamExt;
 use nurtex_codec::types::variable::VarI32;
 use nurtex_encrypt::AesDecryptor;
 use tokio::io::AsyncRead;
+use tokio::net::tcp::OwnedReadHalf;
+use tokio::sync::Mutex;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
 use crate::ProtocolPacket;
+use crate::connection::{ClientsidePacket, ConnectionState};
+use crate::packets::configuration::ClientsideConfigurationPacket;
+use crate::packets::handshake::ClientsideHandshakePacket;
+use crate::packets::login::ClientsideLoginPacket;
+use crate::packets::play::ClientsidePlayPacket;
+use crate::packets::status::ClientsideStatusPacket;
+
+/// Структура для чтения пакетов
+pub struct ConnectionReader {
+  /// Специальная половина `TcpStream` для чтения пакетов
+  pub read_stream: Option<OwnedReadHalf>,
+
+  /// Текущий буффер данных
+  pub buffer: BytesMut,
+
+  /// Декодировщик данных
+  pub decryptor: Arc<Mutex<Option<AesDecryptor>>>,
+
+  /// Состояние подключения
+  pub state: Arc<AtomicI8>,
+
+  /// Порог сжатия (от 0 до 1024), изначально -1
+  pub compression_threshold: Arc<AtomicI32>,
+}
+
+impl ConnectionReader {
+  /// Метод чтения пакета
+  pub async fn read_packet(&mut self) -> Option<ClientsidePacket> {
+    let Some(read_half) = &mut self.read_stream else {
+      return None;
+    };
+
+    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
+    let state = ConnectionState::from(self.state.load(Ordering::SeqCst));
+    let mut decryptor_guard = self.decryptor.lock().await;
+
+    let raw_packet = read_raw_packet(read_half, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
+    let mut cursor = Cursor::new(&raw_packet[..]);
+
+    match state {
+      ConnectionState::Handshake => deserialize_packet::<ClientsideHandshakePacket>(&mut cursor).map(ClientsidePacket::Handshake),
+      ConnectionState::Status => deserialize_packet::<ClientsideStatusPacket>(&mut cursor).map(ClientsidePacket::Status),
+      ConnectionState::Login => deserialize_packet::<ClientsideLoginPacket>(&mut cursor).map(ClientsidePacket::Login),
+      ConnectionState::Configuration => deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor).map(ClientsidePacket::Configuration),
+      ConnectionState::Play => deserialize_packet::<ClientsidePlayPacket>(&mut cursor).map(ClientsidePacket::Play),
+    }
+  }
+}
 
 /// Функция парсинга фрейма
 fn parse_frame(buf: &mut BytesMut) -> Option<Bytes> {

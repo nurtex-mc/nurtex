@@ -1,7 +1,7 @@
 use std::io;
 
 use nurtex_protocol::connection::utils::handle_encryption_request;
-use nurtex_protocol::connection::{ConnectionState, NurtexConnection};
+use nurtex_protocol::connection::{Connection, ConnectionState};
 use nurtex_protocol::packets::configuration::{
   ClientsideConfigurationPacket, ServersideAcknowledgeFinishConfiguration, ServersideClientInformation, ServersideConfigurationPacket, ServersideKnownPacks,
   ServersideResourcePackResponse,
@@ -16,11 +16,14 @@ async fn main() -> io::Result<()> {
   let target_host = "localhost".to_string();
   let target_port = 25565;
 
-  // Создаём подключение (состояние Handshake)
-  let conn = match NurtexConnection::new(&target_host, target_port).await {
+  // Создаём подключение
+  let conn = Connection::new();
+
+  // Подключаемся к целевому серверу
+  match conn.connect(&target_host, target_port).await {
     Ok(c) => c,
     Err(_) => return Ok(()),
-  };
+  }
 
   // Отправляем привестствие
   conn

@@ -7,12 +7,12 @@ use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::bot::connection::spawn_connection;
+use crate::bot::connection::{BotPackage, spawn_connection};
 use crate::bot::handlers::Handlers;
 use crate::bot::plugins::Plugins;
-use crate::bot::types::{Connection, PacketReader, PacketWriter};
+use crate::bot::types::{PacketReader, PacketWriter};
 use crate::bot::{BotComponents, BotProfile, ClientInfo};
-use crate::protocol::connection::{ClientsidePacket, NurtexConnection};
+use crate::protocol::connection::{ClientsidePacket, Connection};
 use crate::protocol::packets::play::ServersidePlayPacket;
 use crate::protocol::types::{BlockPos, Rotation, Vector3};
 use crate::registry::BlockKind;
@@ -56,7 +56,7 @@ use crate::random::generate_username;
 /// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
 pub struct Bot {
   pub profile: Arc<RwLock<BotProfile>>,
-  pub connection: Connection,
+  pub connection: Arc<RwLock<Connection>>,
   handle: Option<JoinHandle<core::result::Result<(), std::io::Error>>>,
   entity_id: Arc<EntityId>,
   username: String,
@@ -109,7 +109,7 @@ impl Bot {
 
     Self {
       profile: Arc::new(RwLock::new(profile)),
-      connection: Arc::new(RwLock::new(None::<NurtexConnection>)),
+      connection: Arc::new(RwLock::new(Connection::new())),
       plugins: Arc::new(Plugins::default()),
       protocol_version: 774,
       connection_timeout: 14000,
@@ -129,33 +129,14 @@ impl Bot {
   }
 
   /// Метод запуска `reader` (выполняется автоматически при подключении бота)
-  pub fn run_reader(connection: Connection, reader_tx: PacketReader) -> JoinHandle<()> {
+  pub fn run_reader(connection: Arc<RwLock<Connection>>, reader_tx: PacketReader) -> JoinHandle<()> {
     tokio::spawn(async move {
-      // Может быть гонка условий с NurtexConnection, поэтому небольшая задержка нужна
       tokio::time::sleep(Duration::from_millis(500)).await;
 
       loop {
-        let connected = {
-          match tokio::time::timeout(Duration::from_secs(7), connection.read()).await {
-            Ok(g) => g.is_some(),
-            Err(_) => false,
-          }
-        };
-
-        if !connected {
-          tokio::time::sleep(Duration::from_millis(100)).await;
-          continue;
-        }
-
         let packet_result = {
           match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
-            Ok(r) => {
-              if let Some(g) = r.as_ref() {
-                g.read_packet().await
-              } else {
-                None
-              }
-            }
+            Ok(g) => g.read_packet().await,
             _ => None,
           }
         };
@@ -173,18 +154,17 @@ impl Bot {
   }
 
   /// Метод запуска `writer` (выполняется автоматически при подключении бота)
-  pub fn run_writer(connection: Connection, writer_tx: PacketWriter) -> JoinHandle<()> {
+  pub fn run_writer(connection: Arc<RwLock<Connection>>, writer_tx: PacketWriter) -> JoinHandle<()> {
     let mut writer_rx = writer_tx.subscribe();
 
     tokio::spawn(async move {
-      // Может быть гонка условий с NurtexConnection, поэтому небольшая задержка нужна
       tokio::time::sleep(Duration::from_millis(800)).await;
 
       let writer_fn = async |packet: ServersidePlayPacket| {
-        if let Some(conn) = connection.read().await.as_ref() {
-          let _ = conn.write_play_packet(packet).await;
-        } else {
-          tokio::time::sleep(Duration::from_millis(50)).await;
+        let conn_guard = connection.read().await;
+
+        if let Err(_) = conn_guard.write_play_packet(packet).await {
+          tokio::time::sleep(Duration::from_millis(100)).await
         }
       };
 
@@ -340,55 +320,39 @@ impl Bot {
 
   /// Метод подключения бота к серверу, возвращающий хэндл подключения
   pub fn connect_with_handle(&self, server_host: impl Into<String>, server_port: u16) -> JoinHandle<Result<(), std::io::Error>> {
-    let connection = self.connection.clone();
-    let profile = self.profile.clone();
-    let components = self.components.clone();
-    let entity_id = self.entity_id.clone();
-    let plugins = self.plugins.clone();
-    let reader_tx = self.reader_tx.clone();
-    let writer_tx = self.writer_tx.clone();
-    let storage = self.storage.clone();
-    let handlers = self.handlers.clone();
-
-    #[cfg(feature = "speedometer")]
-    let speedometer = self.speedometer.clone();
-
-    #[cfg(feature = "proxy")]
-    let proxy = self.proxy.clone();
-
-    let protocol_version = self.protocol_version;
-    let coonnection_timeout = self.connection_timeout;
-
-    let host = server_host.into();
-    let port = server_port;
+    let package = BotPackage {
+      connection: self.connection.clone(),
+      profile: self.profile.clone(),
+      components: self.components.clone(),
+      entity_id: self.entity_id.clone(),
+      #[cfg(feature = "speedometer")]
+      speedometer: self.speedometer.clone(),
+      plugins: self.plugins.clone(),
+      packet_reader: self.reader_tx.clone(),
+      packet_writer: self.writer_tx.clone(),
+      storage: self.storage.clone(),
+      #[cfg(feature = "proxy")]
+      proxy: self.proxy.clone(),
+      handlers: self.handlers.clone(),
+      server_host: server_host.into(),
+      server_port: server_port,
+      protocol_version: self.protocol_version,
+      connection_timeout: self.connection_timeout,
+    };
 
     tokio::spawn(async move {
       let mut reconnection_attempts = 0;
-      let max_attempts = if plugins.auto_reconnect.enabled { plugins.auto_reconnect.max_attempts } else { 1 };
+      let max_attempts = if package.plugins.auto_reconnect.enabled {
+        package.plugins.auto_reconnect.max_attempts
+      } else {
+        1
+      };
 
       loop {
-        let reader_handle = Self::run_reader(Arc::clone(&connection), Arc::clone(&reader_tx));
-        let writer_handle = Self::run_writer(Arc::clone(&connection), Arc::clone(&writer_tx));
+        let reader_handle = Self::run_reader(Arc::clone(&package.connection), Arc::clone(&package.packet_reader));
+        let writer_handle = Self::run_writer(Arc::clone(&package.connection), Arc::clone(&package.packet_writer));
 
-        let result = spawn_connection(
-          &connection,
-          &profile,
-          &components,
-          &entity_id,
-          #[cfg(feature = "speedometer")]
-          &speedometer,
-          &plugins,
-          &reader_tx,
-          &storage,
-          protocol_version,
-          coonnection_timeout,
-          #[cfg(feature = "proxy")]
-          &proxy,
-          &host,
-          port,
-          &handlers,
-        )
-        .await;
+        let result = spawn_connection(&package).await;
 
         // На этом моменте бот считается не подключенным к серверу, поэтому нужно отменять reader / writer
         reader_handle.abort();
@@ -398,13 +362,13 @@ impl Bot {
           Ok(_) => return Ok(()),
           Err(e) => match e.kind() {
             ErrorKind::ConnectionAborted | ErrorKind::ConnectionRefused | ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::NotConnected | ErrorKind::NetworkDown => {
-              if !plugins.auto_reconnect.enabled || (max_attempts != -1 && reconnection_attempts >= max_attempts) {
+              if !package.plugins.auto_reconnect.enabled || (max_attempts != -1 && reconnection_attempts >= max_attempts) {
                 return Err(e);
               }
 
               reconnection_attempts += 1;
 
-              tokio::time::sleep(Duration::from_millis(plugins.auto_reconnect.reconnect_delay)).await;
+              tokio::time::sleep(Duration::from_millis(package.plugins.auto_reconnect.reconnect_delay)).await;
             }
             _ => return Err(e),
           },
@@ -422,12 +386,9 @@ impl Bot {
   pub async fn shutdown(&self) -> std::io::Result<()> {
     self.abort_handle();
 
-    let mut conn_guard = self.connection.write().await;
-    if let Some(conn) = conn_guard.as_ref() {
-      conn.shutdown().await?;
-    }
+    let conn_guard = self.connection.read().await;
+    conn_guard.shutdown().await?;
 
-    *conn_guard = None;
     std::mem::drop(conn_guard);
 
     self.clear().await;

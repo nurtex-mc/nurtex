@@ -1,18 +1,15 @@
 use std::fmt::Debug;
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI8, AtomicI32, Ordering};
 
 use bytes::BytesMut;
-use nurtex_encrypt::{AesDecryptor, AesEncryptor};
 use nurtex_proxy::{Proxy, ProxyResult};
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::Mutex;
 
-use crate::connection::reader::{deserialize_packet, read_raw_packet};
-use crate::connection::writer::{serialize_packet, write_raw_packet};
+use crate::connection::reader::ConnectionReader;
+use crate::connection::writer::ConnectionWriter;
 use crate::packets::{
   configuration::{ClientsideConfigurationPacket, ServersideConfigurationPacket},
   handshake::{ClientsideHandshakePacket, ServersideHandshakePacket},
@@ -91,38 +88,8 @@ impl ServersidePacket {
   }
 }
 
-/// Структура для чтения пакетов
-pub struct ConnectionReader {
-  /// Специальная половина `TcpStream` для чтения пакетов
-  read_stream: OwnedReadHalf,
-
-  /// Текущий буффер данных
-  buffer: BytesMut,
-
-  /// Декодировщик данных
-  decryptor: Arc<Mutex<Option<AesDecryptor>>>,
-
-  /// Состояние подключения
-  state: Arc<AtomicI8>,
-
-  /// Порог сжатия (от 0 до 1024), изначально -1
-  compression_threshold: Arc<AtomicI32>,
-}
-
-/// Структура для записи пакетов
-pub struct ConnectionWriter {
-  /// Специальная половина `TcpStream` для записи пакетов
-  write_stream: OwnedWriteHalf,
-
-  /// Кодировщик данных
-  encryptor: Arc<Mutex<Option<AesEncryptor>>>,
-
-  /// Порог сжатия (от 0 до 1024), изначально -1
-  compression_threshold: Arc<AtomicI32>,
-}
-
 /// Основная структура подключения
-pub struct NurtexConnection {
+pub struct Connection {
   /// Чтение пакетов
   reader: Arc<Mutex<ConnectionReader>>,
 
@@ -136,81 +103,14 @@ pub struct NurtexConnection {
   compression_threshold: Arc<AtomicI32>,
 }
 
-impl ConnectionReader {
-  /// Метод чтения пакета
-  pub async fn read_packet(&mut self) -> Option<ClientsidePacket> {
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let state = ConnectionState::from(self.state.load(Ordering::SeqCst));
-    let mut decryptor_guard = self.decryptor.lock().await;
-
-    let raw_packet = read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard).await?;
-    let mut cursor = Cursor::new(&raw_packet[..]);
-
-    match state {
-      ConnectionState::Handshake => deserialize_packet::<ClientsideHandshakePacket>(&mut cursor).map(ClientsidePacket::Handshake),
-      ConnectionState::Status => deserialize_packet::<ClientsideStatusPacket>(&mut cursor).map(ClientsidePacket::Status),
-      ConnectionState::Login => deserialize_packet::<ClientsideLoginPacket>(&mut cursor).map(ClientsidePacket::Login),
-      ConnectionState::Configuration => deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor).map(ClientsidePacket::Configuration),
-      ConnectionState::Play => deserialize_packet::<ClientsidePlayPacket>(&mut cursor).map(ClientsidePacket::Play),
-    }
-  }
-}
-
-impl ConnectionWriter {
-  /// Метод записи пакета
-  pub async fn write_packet(&mut self, packet: ServersidePacket) -> std::io::Result<()> {
-    let serialized = match packet {
-      ServersidePacket::Handshake(p) => serialize_packet(&p)?,
-      ServersidePacket::Status(p) => serialize_packet(&p)?,
-      ServersidePacket::Login(p) => serialize_packet(&p)?,
-      ServersidePacket::Configuration(p) => serialize_packet(&p)?,
-      ServersidePacket::Play(p) => serialize_packet(&p)?,
-    };
-
-    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
-    let mut encryptor_guard = self.encryptor.lock().await;
-
-    write_raw_packet(&serialized, &mut self.write_stream, compression_threshold, &mut *encryptor_guard).await
-  }
-
-  /// Метод выключения потока записи
-  pub async fn shutdown(&mut self) -> std::io::Result<()> {
-    self.write_stream.shutdown().await
-  }
-}
-
-impl NurtexConnection {
+impl Connection {
   /// Метод создания нового подключения
-  pub async fn new(server_host: impl Into<String>, server_port: u16) -> std::io::Result<Self> {
-    let stream = TcpStream::connect(format!("{}:{}", server_host.into(), server_port)).await?;
-    stream.set_nodelay(true)?;
-    Self::new_from_stream(stream).await
-  }
-
-  /// Метод создания нового подключения с прокси
-  pub async fn new_with_proxy(server_host: impl Into<String>, server_port: u16, proxy: &Proxy) -> std::io::Result<Self> {
-    let stream = match proxy.connect(server_host, server_port).await {
-      ProxyResult::Ok(s) => s,
-      ProxyResult::Err(e) => return Err(Error::new(ErrorKind::NotConnected, e.text())),
-    };
-
-    stream.set_nodelay(true)?;
-
-    Self::new_from_stream(stream).await
-  }
-
-  /// Метод создания нового подключения из TcpStream
-  pub async fn new_from_stream(stream: TcpStream) -> std::io::Result<Self> {
-    let (rh, wh) = stream.into_split();
-
-    // Изначально хэндшейк
-    let state = Arc::new(AtomicI8::new(0));
-
-    // Изначально отрицательный (не указан)
-    let compression_threshold = Arc::new(AtomicI32::new(-1));
+  pub fn new() -> Self {
+    let state = Arc::new(AtomicI8::new(0)); // Изначально хэндшейк
+    let compression_threshold = Arc::new(AtomicI32::new(-1)); // Изначально отрицательный (не указан)
 
     let reader = ConnectionReader {
-      read_stream: rh,
+      read_stream: None,
       buffer: BytesMut::with_capacity(64 * 1024),
       compression_threshold: Arc::clone(&compression_threshold),
       decryptor: Arc::new(Mutex::new(None)),
@@ -218,17 +118,47 @@ impl NurtexConnection {
     };
 
     let writer = ConnectionWriter {
-      write_stream: wh,
+      write_stream: None,
       compression_threshold: Arc::clone(&compression_threshold),
       encryptor: Arc::new(Mutex::new(None)),
     };
 
-    Ok(NurtexConnection {
+    Self {
       reader: Arc::new(Mutex::new(reader)),
       writer: Arc::new(Mutex::new(writer)),
       state: state,
       compression_threshold,
-    })
+    }
+  }
+
+  /// Метод создания нового подключения
+  pub async fn connect(&self, server_host: impl Into<String>, server_port: u16) -> std::io::Result<()> {
+    let stream = TcpStream::connect(format!("{}:{}", server_host.into(), server_port)).await?;
+    stream.set_nodelay(true)?;
+
+    let (read_stream, write_stream) = stream.into_split();
+
+    self.reader.lock().await.read_stream = Some(read_stream);
+    self.writer.lock().await.write_stream = Some(write_stream);
+
+    Ok(())
+  }
+
+  /// Метод создания нового подключения с прокси
+  pub async fn connect_with_proxy(&self, server_host: impl Into<String>, server_port: u16, proxy: &Proxy) -> std::io::Result<()> {
+    let stream = match proxy.connect(server_host, server_port).await {
+      ProxyResult::Ok(s) => s,
+      ProxyResult::Err(e) => return Err(Error::new(ErrorKind::NotConnected, e.text())),
+    };
+
+    stream.set_nodelay(true)?;
+
+    let (read_stream, write_stream) = stream.into_split();
+
+    self.reader.lock().await.read_stream = Some(read_stream);
+    self.writer.lock().await.write_stream = Some(write_stream);
+
+    Ok(())
   }
 
   /// Метод получения `reader`
@@ -369,6 +299,36 @@ impl NurtexConnection {
     {
       let writer = self.writer.lock().await;
       *writer.encryptor.lock().await = Some(encryptor);
+    }
+  }
+}
+
+impl From<TcpStream> for Connection {
+  fn from(value: TcpStream) -> Self {
+    let (read_stream, write_stream) = value.into_split();
+
+    let state = Arc::new(AtomicI8::new(0));
+    let compression_threshold = Arc::new(AtomicI32::new(-1));
+
+    let reader = ConnectionReader {
+      read_stream: Some(read_stream),
+      buffer: BytesMut::with_capacity(64 * 1024),
+      compression_threshold: Arc::clone(&compression_threshold),
+      decryptor: Arc::new(Mutex::new(None)),
+      state: Arc::clone(&state),
+    };
+
+    let writer = ConnectionWriter {
+      write_stream: Some(write_stream),
+      compression_threshold: Arc::clone(&compression_threshold),
+      encryptor: Arc::new(Mutex::new(None)),
+    };
+
+    Self {
+      reader: Arc::new(Mutex::new(reader)),
+      writer: Arc::new(Mutex::new(writer)),
+      state: state,
+      compression_threshold,
     }
   }
 }

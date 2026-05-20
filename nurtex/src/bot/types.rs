@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use tokio::sync::{RwLock, broadcast};
-
-/// Тип потокобезопасного подключения
-pub type Connection = Arc<RwLock<Option<crate::protocol::connection::NurtexConnection>>>;
+use tokio::sync::broadcast;
 
 /// Тип потокобезопасного `reader`
 pub type PacketReader = Arc<broadcast::Sender<crate::protocol::connection::ClientsidePacket>>;

@@ -1,5 +1,6 @@
-use std::fmt::Debug;
 use std::io::Read;
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::{fmt::Debug, sync::Arc};
 
 use bytes::{Bytes, BytesMut};
 use flate2::Compression;
@@ -7,8 +8,54 @@ use flate2::bufread::ZlibEncoder;
 use nurtex_codec::types::variable::VarI32;
 use nurtex_encrypt::AesEncryptor;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
+use tokio::net::tcp::OwnedWriteHalf;
+use tokio::sync::Mutex;
 
 use crate::ProtocolPacket;
+use crate::connection::ServersidePacket;
+
+/// Структура для записи пакетов
+pub struct ConnectionWriter {
+  /// Специальная половина `TcpStream` для записи пакетов
+  pub write_stream: Option<OwnedWriteHalf>,
+
+  /// Кодировщик данных
+  pub encryptor: Arc<Mutex<Option<AesEncryptor>>>,
+
+  /// Порог сжатия (от 0 до 1024), изначально -1
+  pub compression_threshold: Arc<AtomicI32>,
+}
+
+impl ConnectionWriter {
+  /// Метод записи пакета
+  pub async fn write_packet(&mut self, packet: ServersidePacket) -> std::io::Result<()> {
+    let Some(write_half) = &mut self.write_stream else {
+      return Err(std::io::Error::new(std::io::ErrorKind::NotConnected, "write stream not initialized"));
+    };
+
+    let serialized = match packet {
+      ServersidePacket::Handshake(p) => serialize_packet(&p)?,
+      ServersidePacket::Status(p) => serialize_packet(&p)?,
+      ServersidePacket::Login(p) => serialize_packet(&p)?,
+      ServersidePacket::Configuration(p) => serialize_packet(&p)?,
+      ServersidePacket::Play(p) => serialize_packet(&p)?,
+    };
+
+    let compression_threshold = self.compression_threshold.load(Ordering::SeqCst);
+    let mut encryptor_guard = self.encryptor.lock().await;
+
+    write_raw_packet(&serialized, write_half, compression_threshold, &mut *encryptor_guard).await
+  }
+
+  /// Метод выключения потока записи
+  pub async fn shutdown(&mut self) -> std::io::Result<()> {
+    if let Some(write_half) = &mut self.write_stream {
+      write_half.shutdown().await?;
+    }
+
+    Ok(())
+  }
+}
 
 /// Функция записи сетевого пакета
 pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: i32, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>

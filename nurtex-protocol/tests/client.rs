@@ -1,7 +1,7 @@
 use std::io;
 
 use nurtex_protocol::connection::utils::handle_encryption_request;
-use nurtex_protocol::connection::{ConnectionState, NurtexConnection};
+use nurtex_protocol::connection::{Connection, ConnectionState};
 use nurtex_protocol::packets::configuration::{
   ClientsideConfigurationPacket, ServersideAcknowledgeFinishConfiguration, ServersideClientInformation, ServersideConfigurationPacket, ServersideKnownPacks,
   ServersideResourcePackResponse,
@@ -13,10 +13,12 @@ use nurtex_protocol::types::{AccurateHand, ChatMode, ClientIntention, DisplayedS
 
 #[tokio::test]
 async fn test_client() -> io::Result<()> {
-  let conn = match NurtexConnection::new("localhost", 25565).await {
+  let conn = Connection::new();
+
+  match conn.connect("localhost", 25565).await {
     Ok(c) => c,
     Err(_) => return Ok(()),
-  };
+  }
 
   conn
     .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {

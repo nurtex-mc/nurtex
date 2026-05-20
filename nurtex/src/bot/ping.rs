@@ -3,14 +3,16 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 
-use crate::protocol::connection::NurtexConnection;
+use crate::protocol::connection::Connection;
 use crate::proxy::Proxy;
 
 /// Функция пингования сервера
 pub async fn ping_server(server_host: impl Into<String>, server_port: u16) -> std::io::Result<u128> {
   let start_time = std::time::Instant::now();
 
-  match timeout(Duration::from_secs(30), NurtexConnection::new(server_host.into(), server_port)).await {
+  let conn = Connection::new();
+
+  match timeout(Duration::from_secs(30), conn.connect(server_host.into(), server_port)).await {
     Ok(r) => match r {
       Ok(_) => {}
       Err(e) => return Err(e),
@@ -27,7 +29,9 @@ pub async fn ping_server(server_host: impl Into<String>, server_port: u16) -> st
 pub async fn ping_server_with_proxy(server_host: impl Into<String>, server_port: u16, proxy: &Proxy) -> std::io::Result<u128> {
   let start_time = std::time::Instant::now();
 
-  match timeout(Duration::from_secs(30), NurtexConnection::new_with_proxy(server_host.into(), server_port, proxy)).await {
+  let conn = Connection::new();
+
+  match timeout(Duration::from_secs(30), conn.connect_with_proxy(server_host.into(), server_port, proxy)).await {
     Ok(r) => match r {
       Ok(_) => {}
       Err(e) => return Err(e),
