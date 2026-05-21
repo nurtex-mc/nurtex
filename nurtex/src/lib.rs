@@ -17,7 +17,7 @@ pub mod storage;
 pub mod world;
 
 #[cfg(feature = "bot")]
-pub use bot::{Bot, BotChatExt, BotComponents, BotProfile, ClientInfo};
+pub use bot::{Bot, BotChatExt, BotComponents, ClientInfo};
 
 #[cfg(feature = "cluster")]
 pub use cluster::Cluster;

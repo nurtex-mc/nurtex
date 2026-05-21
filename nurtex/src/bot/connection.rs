@@ -3,10 +3,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{RwLock, broadcast};
+use uuid::Uuid;
 
-use crate::BotProfile;
+use crate::ClientInfo;
 use crate::bot::BotComponents;
-use crate::bot::capture::{capture_components, capture_connection};
+use crate::bot::capture::capture_components;
 use crate::bot::handlers::{ChatPayload, DisconnectPayload, Handlers};
 use crate::bot::plugins::Plugins;
 use crate::bot::types::{PacketReader, PacketWriter};
@@ -35,10 +36,16 @@ use crate::speedometer::Speedometer;
 /// Структура основных данных бота
 pub struct BotPackage {
   /// TCP-подключение
-  pub connection: Arc<RwLock<Connection>>,
+  pub connection: Arc<Connection>,
 
   /// Юзернейм бота
-  pub profile: Arc<RwLock<BotProfile>>,
+  pub name: String,
+
+  /// UUID бота
+  pub uuid: Arc<RwLock<Uuid>>,
+
+  /// Информация клиента бота
+  pub info: ClientInfo,
 
   /// Компоненты бота
   pub components: Arc<RwLock<BotComponents>>,
@@ -84,18 +91,15 @@ pub struct BotPackage {
 
 /// Функция спавна процесса подключения
 pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
-  let connection = &package.connection;
+  let conn = &package.connection;
 
-  {
-    let conn_guard = connection.read().await;
-    conn_guard.shutdown().await?;
-  }
+  conn.shutdown().await?;
 
   #[cfg(feature = "proxy")]
   match &package.proxy {
     Some(proxy) => match tokio::time::timeout(
       Duration::from_millis(package.connection_timeout),
-      connection.read().await.connect_with_proxy(package.server_host.clone(), package.server_port, proxy),
+      conn.connect_with_proxy(package.server_host.clone(), package.server_port, proxy),
     )
     .await
     {
@@ -107,7 +111,7 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
     },
     None => match tokio::time::timeout(
       Duration::from_millis(package.connection_timeout),
-      connection.read().await.connect(package.server_host.clone(), package.server_port),
+      conn.connect(package.server_host.clone(), package.server_port),
     )
     .await
     {
@@ -120,12 +124,7 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
   }
 
   #[cfg(not(feature = "proxy"))]
-  match tokio::time::timeout(
-    Duration::from_millis(package.connection_tiemout),
-    connection.read().await.connect(package.server_host.clone(), server_port),
-  )
-  .await
-  {
+  match tokio::time::timeout(Duration::from_millis(package.connection_tiemout), conn.connect(package.server_host.clone(), server_port)).await {
     Ok(result) => match result {
       Ok(c) => c,
       Err(err) => return Err(err),
@@ -133,78 +132,55 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
     Err(_) => return Err(Error::new(ErrorKind::TimedOut, "failed to receive a response from server within specified timeout")),
   }
 
-  let profile_data = { package.profile.read().await.clone() };
+  conn
+    .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
+      protocol_version: package.protocol_version,
+      server_host: package.server_host.clone(),
+      server_port: package.server_port,
+      intention: ClientIntention::Login,
+    }))
+    .await?;
 
-  capture_connection(&connection, async |conn| {
-    conn
-      .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
-        protocol_version: package.protocol_version,
-        server_host: package.server_host.clone(),
-        server_port: package.server_port,
-        intention: ClientIntention::Login,
-      }))
-      .await?;
+  conn.set_state(ConnectionState::Login).await;
 
-    conn.set_state(ConnectionState::Login).await;
-
-    conn
-      .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
-        username: profile_data.username.clone(),
-        uuid: profile_data.uuid,
-      }))
-      .await
-  })
-  .await?;
+  conn
+    .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
+      username: package.name.clone(),
+      uuid: *package.uuid.read().await,
+    }))
+    .await?;
 
   loop {
-    let Some(packet) = ({
-      let conn_guard = connection.read().await;
-      conn_guard.read_login_packet().await
-    }) else {
+    let Some(packet) = conn.read_login_packet().await else {
       continue;
     };
 
     match packet {
       ClientsideLoginPacket::Compression(p) => {
-        capture_connection(&connection, async |conn| {
-          conn.set_compression_threshold(p.compression_threshold).await;
-          Ok(())
-        })
-        .await?;
+        conn.set_compression_threshold(p.compression_threshold).await;
       }
       ClientsideLoginPacket::EncryptionRequest(request) => {
         if let Some((response, secret_key)) = handle_encryption_request(&request) {
-          capture_connection(&connection, async |conn| {
-            conn.write_login_packet(ServersideLoginPacket::EncryptionResponse(response)).await?;
-            conn.set_encryption_key(secret_key).await;
-            Ok(())
-          })
-          .await?;
+          conn.write_login_packet(ServersideLoginPacket::EncryptionResponse(response)).await?;
+          conn.set_encryption_key(secret_key).await;
         }
       }
       ClientsideLoginPacket::LoginSuccess(p) => {
         if let Some(handler) = &package.handlers.on_login_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(handler_clone(username_clone));
+          tokio::spawn(handler_clone(package.name.clone()));
         }
 
-        package.profile.write().await.uuid = p.uuid;
+        *package.uuid.write().await = p.uuid;
 
-        capture_connection(&connection, async |conn| {
-          conn.write_login_packet(ServersideLoginPacket::LoginAcknowledged(ServersideLoginAcknowledged)).await
-        })
-        .await?;
+        conn.write_login_packet(ServersideLoginPacket::LoginAcknowledged(ServersideLoginAcknowledged)).await?;
 
         break;
       }
       ClientsideLoginPacket::Disconnect(_p) => {
         if let Some(handler) = &package.handlers.on_disconnect_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
+          tokio::spawn(handler_clone(package.name.clone(), DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
@@ -213,80 +189,55 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
     }
   }
 
-  capture_connection(&connection, async |conn| {
-    conn.set_state(ConnectionState::Configuration).await;
-    conn
-      .write_configuration_packet(ServersideConfigurationPacket::ClientInformation(
-        package.profile.read().await.information.to_serverside_packet(),
-      ))
-      .await
-  })
-  .await?;
+  conn.set_state(ConnectionState::Configuration).await;
+  conn
+    .write_configuration_packet(ServersideConfigurationPacket::ClientInformation(package.info.to_serverside_packet()))
+    .await?;
 
   loop {
-    let Some(packet) = ({
-      let conn_guard = connection.read().await;
-      conn_guard.read_configuration_packet().await
-    }) else {
+    let Some(packet) = conn.read_configuration_packet().await else {
       continue;
     };
 
     match packet {
       ClientsideConfigurationPacket::KeepAlive(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_configuration_packet(ServersideConfigurationPacket::KeepAlive(crate::protocol::packets::configuration::MultisideKeepAlive {
-              id: p.id,
-            }))
-            .await
-        })
-        .await?;
+        conn
+          .write_configuration_packet(ServersideConfigurationPacket::KeepAlive(crate::protocol::packets::configuration::MultisideKeepAlive {
+            id: p.id,
+          }))
+          .await?;
       }
       ClientsideConfigurationPacket::Ping(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_configuration_packet(ServersideConfigurationPacket::Pong(crate::protocol::packets::configuration::ServersidePong { id: p.id }))
-            .await
-        })
-        .await?;
+        conn
+          .write_configuration_packet(ServersideConfigurationPacket::Pong(crate::protocol::packets::configuration::ServersidePong { id: p.id }))
+          .await?;
       }
       ClientsideConfigurationPacket::KnownPacks(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_configuration_packet(ServersideConfigurationPacket::KnownPacks(ServersideKnownPacks { known_packs: p.known_packs }))
-            .await
-        })
-        .await?;
+        conn
+          .write_configuration_packet(ServersideConfigurationPacket::KnownPacks(ServersideKnownPacks { known_packs: p.known_packs }))
+          .await?;
       }
       ClientsideConfigurationPacket::FinishConfiguration(_) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_configuration_packet(ServersideConfigurationPacket::AcknowledgeFinishConfiguration(ServersideAcknowledgeFinishConfiguration))
-            .await
-        })
-        .await?;
+        conn
+          .write_configuration_packet(ServersideConfigurationPacket::AcknowledgeFinishConfiguration(ServersideAcknowledgeFinishConfiguration))
+          .await?;
 
         break;
       }
       ClientsideConfigurationPacket::AddResourcePack(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_configuration_packet(ServersideConfigurationPacket::ResourcePackResponse(
-              crate::protocol::packets::configuration::ServersideResourcePackResponse {
-                uuid: p.uuid,
-                state: ResourcePackState::Accepted,
-              },
-            ))
-            .await
-        })
-        .await?;
+        conn
+          .write_configuration_packet(ServersideConfigurationPacket::ResourcePackResponse(
+            crate::protocol::packets::configuration::ServersideResourcePackResponse {
+              uuid: p.uuid,
+              state: ResourcePackState::Accepted,
+            },
+          ))
+          .await?;
       }
       ClientsideConfigurationPacket::Disconnect(_p) => {
         if let Some(handler) = &package.handlers.on_disconnect_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
+          tokio::spawn(handler_clone(package.name.clone(), DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
@@ -295,22 +246,16 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
     }
   }
 
-  capture_connection(&connection, async |conn| {
-    conn.set_state(ConnectionState::Play).await;
-    Ok(())
-  })
-  .await?;
+  conn.set_state(ConnectionState::Play).await;
 
   #[cfg(feature = "speedometer")]
   if let Some(speedometer) = &package.speedometer {
-    speedometer.bot_joined(profile_data.username.clone());
+    speedometer.bot_joined(package.name.clone());
   }
 
   if let Some(handler) = &package.handlers.on_spawn_handler {
-    let username_clone = profile_data.username.clone();
     let handler_clone = Arc::clone(handler);
-
-    tokio::spawn(handler_clone(username_clone));
+    tokio::spawn(handler_clone(package.name.clone()));
   }
 
   let mut packet_rx = {
@@ -319,12 +264,10 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
   };
 
   loop {
-    let packet = match tokio::time::timeout(Duration::from_millis(8000), packet_rx.recv()).await {
+    let packet = match tokio::time::timeout(Duration::from_secs(4), packet_rx.recv()).await {
       Ok(Ok(ClientsidePacket::Play(play_packet))) => play_packet,
-      Ok(Ok(_)) => continue,
-      Ok(Err(broadcast::error::RecvError::Lagged(_))) => continue,
       Ok(Err(broadcast::error::RecvError::Closed)) => return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server")),
-      Err(_) => continue,
+      _ => continue,
     };
 
     match packet {
@@ -334,14 +277,11 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
         if package.plugins.auto_respawn.enabled && p.enable_respawn_screen {
           tokio::time::sleep(Duration::from_millis(package.plugins.auto_respawn.respawn_delay)).await;
 
-          capture_connection(&connection, async |conn| {
-            conn
-              .write_play_packet(ServersidePlayPacket::ClientCommand(ServersideClientCommand {
-                command: ClientCommand::PerformRespawn,
-              }))
-              .await
-          })
-          .await?;
+          conn
+            .write_play_packet(ServersidePlayPacket::ClientCommand(ServersideClientCommand {
+              command: ClientCommand::PerformRespawn,
+            }))
+            .await?;
         }
       }
       ClientsidePlayPacket::SpawnEntity(p) => {
@@ -427,20 +367,16 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
         }
       }
       ClientsidePlayPacket::KeepAlive(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_play_packet(ServersidePlayPacket::KeepAlive(crate::protocol::packets::play::MultisideKeepAlive { id: p.id }))
-            .await
-        })
-        .await?;
+        conn
+          .write_play_packet(ServersidePlayPacket::KeepAlive(crate::protocol::packets::play::MultisideKeepAlive { id: p.id }))
+          .await?;
       }
       ClientsidePlayPacket::PlayerChat(p) => {
         if let Some(handler) = &package.handlers.on_chat_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
 
           tokio::spawn(handler_clone(
-            username_clone,
+            package.name.clone(),
             ChatPayload {
               message: p.message,
               sender_uuid: p.sender_uuid,
@@ -449,12 +385,9 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
         }
       }
       ClientsidePlayPacket::Ping(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_play_packet(ServersidePlayPacket::Pong(crate::protocol::packets::play::ServersidePong { id: p.id }))
-            .await
-        })
-        .await?;
+        conn
+          .write_play_packet(ServersidePlayPacket::Pong(crate::protocol::packets::play::ServersidePong { id: p.id }))
+          .await?;
       }
       ClientsidePlayPacket::SetHealth(p) => {
         capture_components(&package.components, async |comp| {
@@ -477,12 +410,9 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
         })
         .await;
 
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_play_packet(ServersidePlayPacket::AcceptTeleportation(ServersideAcceptTeleportation { teleport_id: p.teleport_id }))
-            .await
-        })
-        .await?;
+        conn
+          .write_play_packet(ServersidePlayPacket::AcceptTeleportation(ServersideAcceptTeleportation { teleport_id: p.teleport_id }))
+          .await?;
       }
       ClientsidePlayPacket::PlayerRotation(p) => {
         capture_components(&package.components, async |comp| {
@@ -491,43 +421,33 @@ pub async fn spawn_connection(package: &BotPackage) -> std::io::Result<()> {
         .await;
       }
       ClientsidePlayPacket::AddResourcePack(p) => {
-        capture_connection(&connection, async |conn| {
-          conn
-            .write_play_packet(ServersidePlayPacket::ResourcePackResponse(crate::protocol::packets::play::ServersideResourcePackResponse {
-              uuid: p.uuid,
-              state: ResourcePackState::Accepted,
-            }))
-            .await
-        })
-        .await?;
+        conn
+          .write_play_packet(ServersidePlayPacket::ResourcePackResponse(crate::protocol::packets::play::ServersideResourcePackResponse {
+            uuid: p.uuid,
+            state: ResourcePackState::Accepted,
+          }))
+          .await?;
       }
       ClientsidePlayPacket::PlayerCombatKill(_p) => {
         if let Some(handler) = &package.handlers.on_death_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(handler_clone(username_clone));
+          tokio::spawn(handler_clone(package.name.clone()));
         }
 
         if package.plugins.auto_respawn.enabled {
           tokio::time::sleep(Duration::from_millis(package.plugins.auto_respawn.respawn_delay)).await;
 
-          capture_connection(&connection, async |conn| {
-            conn
-              .write_play_packet(ServersidePlayPacket::ClientCommand(ServersideClientCommand {
-                command: ClientCommand::PerformRespawn,
-              }))
-              .await
-          })
-          .await?;
+          conn
+            .write_play_packet(ServersidePlayPacket::ClientCommand(ServersideClientCommand {
+              command: ClientCommand::PerformRespawn,
+            }))
+            .await?;
         }
       }
       ClientsidePlayPacket::Disconnect(_p) => {
         if let Some(handler) = &package.handlers.on_disconnect_handler {
-          let username_clone = profile_data.username.clone();
           let handler_clone = Arc::clone(handler);
-
-          tokio::spawn(handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }));
+          tokio::spawn(handler_clone(package.name.clone(), DisconnectPayload { state: ConnectionState::Play }));
         }
 
         return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));

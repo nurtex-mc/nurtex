@@ -286,7 +286,7 @@ impl Connection {
     self.compression_threshold.store(threshold, Ordering::SeqCst);
   }
 
-  /// Устанавливает шифрование на соединении используя секретный ключ.
+  /// Метод установки шифрования для соединения, используя секретный ключ.
   /// Этот метод должен быть вызван **после** отправки `EncryptionResponse` серверу
   pub async fn set_encryption_key(&self, secret_key: [u8; 16]) {
     let (encryptor, decryptor) = nurtex_encrypt::create_cipher(&secret_key);

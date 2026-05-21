@@ -11,7 +11,7 @@ use crate::bot::connection::{BotPackage, spawn_connection};
 use crate::bot::handlers::Handlers;
 use crate::bot::plugins::Plugins;
 use crate::bot::types::{PacketReader, PacketWriter};
-use crate::bot::{BotComponents, BotProfile, ClientInfo};
+use crate::bot::{BotComponents, ClientInfo};
 use crate::protocol::connection::{ClientsidePacket, Connection};
 use crate::protocol::packets::play::ServersidePlayPacket;
 use crate::protocol::types::{BlockPos, Rotation, Vector3};
@@ -55,11 +55,12 @@ use crate::random::generate_username;
 ///
 /// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
 pub struct Bot {
-  pub profile: Arc<RwLock<BotProfile>>,
-  pub connection: Arc<RwLock<Connection>>,
+  pub connection: Arc<Connection>,
   handle: Option<JoinHandle<core::result::Result<(), std::io::Error>>>,
   entity_id: Arc<EntityId>,
-  username: String,
+  name: String,
+  uuid: Arc<RwLock<Uuid>>,
+  info: ClientInfo,
   protocol_version: i32,
   connection_timeout: u64,
   reader_tx: PacketReader,
@@ -104,19 +105,17 @@ impl Bot {
     let (reader_tx, _) = broadcast::channel(reader_capacity);
     let (writer_tx, _) = broadcast::channel(writer_capacity);
 
-    let name = username.into();
-    let profile = BotProfile::new(name.clone());
-
     Self {
-      profile: Arc::new(RwLock::new(profile)),
-      connection: Arc::new(RwLock::new(Connection::new())),
+      connection: Arc::new(Connection::new()),
       plugins: Arc::new(Plugins::default()),
       protocol_version: 774,
       connection_timeout: 14000,
       #[cfg(feature = "proxy")]
       proxy: None,
       entity_id: Arc::new(EntityId::negative()),
-      username: name,
+      name: username.into(),
+      uuid: Arc::new(RwLock::new(Uuid::nil())),
+      info: ClientInfo::default(),
       handle: None,
       reader_tx: Arc::new(reader_tx),
       writer_tx: Arc::new(writer_tx),
@@ -126,57 +125,6 @@ impl Bot {
       storage: Arc::new(Storage::null()),
       handlers: Arc::new(Handlers::new()),
     }
-  }
-
-  /// Метод запуска `reader` (выполняется автоматически при подключении бота)
-  pub fn run_reader(connection: Arc<RwLock<Connection>>, reader_tx: PacketReader) -> JoinHandle<()> {
-    tokio::spawn(async move {
-      tokio::time::sleep(Duration::from_millis(500)).await;
-
-      loop {
-        let packet_result = {
-          match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
-            Ok(g) => g.read_packet().await,
-            _ => None,
-          }
-        };
-
-        match packet_result {
-          Some(packet) => {
-            if reader_tx.send(packet).is_err() {
-              break;
-            }
-          }
-          None => tokio::time::sleep(Duration::from_millis(50)).await,
-        }
-      }
-    })
-  }
-
-  /// Метод запуска `writer` (выполняется автоматически при подключении бота)
-  pub fn run_writer(connection: Arc<RwLock<Connection>>, writer_tx: PacketWriter) -> JoinHandle<()> {
-    let mut writer_rx = writer_tx.subscribe();
-
-    tokio::spawn(async move {
-      tokio::time::sleep(Duration::from_millis(800)).await;
-
-      let writer_fn = async |packet: ServersidePlayPacket| {
-        let conn_guard = connection.read().await;
-
-        if let Err(_) = conn_guard.write_play_packet(packet).await {
-          tokio::time::sleep(Duration::from_millis(100)).await
-        }
-      };
-
-      loop {
-        if let Ok(packet) = writer_rx.recv().await {
-          match tokio::time::timeout(Duration::from_secs(14), writer_fn(packet)).await {
-            Ok(_) => continue,
-            Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
-          }
-        }
-      }
-    })
   }
 
   /// Метод установки плагинов
@@ -212,13 +160,8 @@ impl Bot {
   }
 
   /// Метод установки информации клиента
-  pub fn with_information(self, information: ClientInfo) -> Self {
-    // Здесь почти невозможен исход с ошибкой, поэтому просто игнорируем
-    match self.profile.try_write() {
-      Ok(mut g) => g.information = information,
-      Err(_) => {}
-    }
-
+  pub fn with_information(mut self, info: ClientInfo) -> Self {
+    self.info = info;
     self
   }
 
@@ -242,17 +185,17 @@ impl Bot {
 
   /// Метод получения юзернейма
   pub fn username(&self) -> &str {
-    &self.username
+    &self.name
   }
 
   /// Метод получения UUID
-  pub async fn uuid(&self) -> Uuid {
-    self.profile.read().await.uuid
+  pub async fn get_uuid(&self) -> Uuid {
+    self.uuid.read().await.clone()
   }
 
-  /// Метод получения профиля бота
-  pub fn get_profile(&self) -> Arc<RwLock<BotProfile>> {
-    Arc::clone(&self.profile)
+  /// Метод получения клиентской информации
+  pub async fn get_info(&self) -> &ClientInfo {
+    &self.info
   }
 
   /// Метод получения прокси бота
@@ -322,7 +265,9 @@ impl Bot {
   pub fn connect_with_handle(&self, server_host: impl Into<String>, server_port: u16) -> JoinHandle<Result<(), std::io::Error>> {
     let package = BotPackage {
       connection: self.connection.clone(),
-      profile: self.profile.clone(),
+      name: self.name.clone(),
+      uuid: self.uuid.clone(),
+      info: self.info.clone(),
       components: self.components.clone(),
       entity_id: self.entity_id.clone(),
       #[cfg(feature = "speedometer")]
@@ -349,8 +294,8 @@ impl Bot {
       };
 
       loop {
-        let reader_handle = Self::run_reader(Arc::clone(&package.connection), Arc::clone(&package.packet_reader));
-        let writer_handle = Self::run_writer(Arc::clone(&package.connection), Arc::clone(&package.packet_writer));
+        let reader_handle = run_reader(Arc::clone(&package.connection), Arc::clone(&package.packet_reader));
+        let writer_handle = run_writer(Arc::clone(&package.connection), Arc::clone(&package.packet_writer));
 
         let result = spawn_connection(&package).await;
 
@@ -385,12 +330,7 @@ impl Bot {
   /// Метод полноценной очистки и отключения бота
   pub async fn shutdown(&self) -> std::io::Result<()> {
     self.abort_handle();
-
-    let conn_guard = self.connection.read().await;
-    conn_guard.shutdown().await?;
-
-    std::mem::drop(conn_guard);
-
+    self.connection.shutdown().await?;
     self.clear().await;
 
     Ok(())
@@ -507,6 +447,53 @@ impl Bot {
   pub async fn get_block(&self, pos: BlockPos) -> Option<BlockKind> {
     self.storage.get_block(pos).await
   }
+}
+
+/// Функция запуска `reader`
+fn run_reader(connection: Arc<Connection>, reader_tx: PacketReader) -> JoinHandle<()> {
+  tokio::spawn(async move {
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    loop {
+      let packet_result = match tokio::time::timeout(Duration::from_secs(4), connection.read_packet()).await {
+        Ok(r) => r,
+        _ => None,
+      };
+
+      match packet_result {
+        Some(packet) => {
+          if reader_tx.send(packet).is_err() {
+            break;
+          }
+        }
+        None => tokio::time::sleep(Duration::from_millis(50)).await,
+      }
+    }
+  })
+}
+
+/// Функция запуска `writer`
+fn run_writer(connection: Arc<Connection>, writer_tx: PacketWriter) -> JoinHandle<()> {
+  let mut writer_rx = writer_tx.subscribe();
+
+  tokio::spawn(async move {
+    tokio::time::sleep(Duration::from_millis(800)).await;
+
+    let writer_fn = async |packet: ServersidePlayPacket| {
+      if let Err(_) = connection.write_play_packet(packet).await {
+        tokio::time::sleep(Duration::from_millis(100)).await
+      }
+    };
+
+    loop {
+      if let Ok(packet) = writer_rx.recv().await {
+        match tokio::time::timeout(Duration::from_secs(14), writer_fn(packet)).await {
+          Ok(_) => continue,
+          Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
+        }
+      }
+    }
+  })
 }
 
 #[cfg(test)]
