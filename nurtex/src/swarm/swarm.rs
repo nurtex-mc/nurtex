@@ -59,7 +59,7 @@ use crate::random::generate_username;
 /// }
 /// ```
 ///
-/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
+/// Больше актуальных примеров: [смотреть](https://github.com/nurtex-mc/nurtex/blob/main/nurtex/examples)
 pub struct Swarm {
   /// Список всех ботов
   pub bots: Vec<Arc<Bot>>,

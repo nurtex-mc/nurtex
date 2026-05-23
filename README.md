@@ -51,17 +51,17 @@ All crates focus on:
 
 # Crate map
 
-- [nurtex](https://github.com/NurtexMC/nurtex/tree/main/nurtex): A crate for high-level work with the bot / swarm API.
-- [nurtex-codec](https://github.com/NurtexMC/nurtex/tree/main/nurtex-codec): A crate for serializing Minecraft types into Rust types.
-- [nurtex-derive](https://github.com/NurtexMC/nurtex/tree/main/nurtex-derive): A crate for convenient parsing of network packets.
-- [nurtex-encrypt](https://github.com/NurtexMC/nurtex/tree/main/nurtex-encrypt): A crate containing the Minecraft TCP-connection encryption.
-- [nurtex-protocol](https://github.com/NurtexMC/nurtex/tree/main/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
-- [nurtex-proxy](https://github.com/NurtexMC/nurtex/tree/main/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
-- [nurtex-registry](https://github.com/NurtexMC/nurtex/tree/main/nurtex-registry): A crate containing various Minecraft data.
+- [nurtex](https://github.com/nurtex-mc/nurtex/tree/main/nurtex): A crate for high-level work with the bot / swarm API.
+- [nurtex-codec](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-codec): A crate for serializing Minecraft types into Rust types.
+- [nurtex-derive](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-derive): A crate for convenient parsing of network packets.
+- [nurtex-encrypt](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-encrypt): A crate containing the Minecraft TCP-connection encryption.
+- [nurtex-protocol](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
+- [nurtex-proxy](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
+- [nurtex-registry](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-registry): A crate containing various Minecraft data.
 
 # Documentation
 
-[**Русская**](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
+[**Русская**](https://github.com/nurtex-mc/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/nurtex-mc/nurtex/tree/main/docs/EN.md)
 
 # Tests
 
@@ -74,7 +74,7 @@ Tests on **Kali Linux** (processor: 12th Gen Intel Core i5-12450HX) showed the f
 
 # Examples
 
-All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex/examples)
+All current examples can be found here: [browse](https://github.com/nurtex-mc/nurtex/tree/main/nurtex/examples)
 
 ## Create a bot
 

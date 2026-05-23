@@ -57,7 +57,7 @@ use crate::{Bot, JoinDelay, Swarm, bot::handlers::Handlers};
 /// }
 /// ```
 ///
-/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/nurtex/examples)
+/// Больше актуальных примеров: [смотреть](https://github.com/nurtex-mc/nurtex/blob/main/nurtex/examples)
 pub struct Cluster {
   /// Список роев
   swarms: Vec<Arc<Swarm>>,

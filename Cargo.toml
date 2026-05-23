@@ -14,7 +14,7 @@ resolver = "3"
 version = "1.2.1"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/NurtexMC/nurtex"
+repository = "https://github.com/nurtex-mc/nurtex"
 
 [workspace.dependencies]
 tokio = { version = "1.50.0", features = ["net", "io-util", "rt", "time", "sync"] }

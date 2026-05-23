@@ -16,11 +16,11 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 
 # Documentation
 
-[**Русская**](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
+[**Русская**](https://github.com/nurtex-mc/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/nurtex-mc/nurtex/tree/main/docs/EN.md)
 
 # Examples
 
-All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex/examples)
+All current examples can be found here: [browse](https://github.com/nurtex-mc/nurtex/tree/main/nurtex/examples)
 
 ## Create a bot
 

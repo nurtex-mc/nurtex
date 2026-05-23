@@ -4,7 +4,7 @@ Library that allows a Minecraft client to communicate with a server.
 
 # Examples
 
-Examples of use can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/nurtex-protocol/examples)
+Examples of use can be found here: [browse](https://github.com/nurtex-mc/nurtex/tree/main/nurtex-protocol/examples)
 
 # Packet types
 
